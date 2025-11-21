@@ -194,8 +194,15 @@ const TravelPlanner = () => {
     } catch (err) {
       let errorMessage = 'Ocurrió un error consultando a la IA';
       
-      if (err.message.includes('fetch') || err.message.includes('Failed to fetch')) {
+      // Mejor manejo de errores con más detalles para debugging
+      console.error('Error al planificar viaje:', err);
+      
+      if (err.message.includes('fetch') || err.message.includes('Failed to fetch') || err.name === 'TypeError') {
         errorMessage = `No pudimos conectar con el servidor. Verifica que el backend esté corriendo en ${API_URL}`;
+        console.error('Error de conexión - URL:', `${API_URL}/api/plan`);
+      } else if (err.message.includes('Unexpected token') || err.message.includes('JSON')) {
+        errorMessage = `Error al procesar la respuesta del servidor. Por favor, intenta nuevamente.`;
+        console.error('Error de parsing JSON - puede ser un problema de CORS');
       } else if (err.message) {
         errorMessage = err.message;
       }
