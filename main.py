@@ -87,16 +87,36 @@ app = FastAPI(
 )
 
 # Configurar CORS para permitir requests del frontend React
-# En producción, permite todos los orígenes o lee desde variable de entorno
-FRONTEND_URL = os.getenv("FRONTEND_URL", "*")
-allowed_origins = ["*"] if FRONTEND_URL == "*" else [FRONTEND_URL, "http://localhost:3000", "http://localhost:5173"]
+# IMPORTANTE: Cuando allow_credentials=True, no puedes usar ["*"] - debes especificar orígenes explícitos
+FRONTEND_URL = os.getenv("FRONTEND_URL", "")
+# Orígenes permitidos: incluir URLs comunes de desarrollo y producción
+allowed_origins = [
+    "http://localhost:3000",
+    "http://localhost:5173",
+    "http://127.0.0.1:5173",
+    "http://127.0.0.1:3000",
+]
+
+# Si FRONTEND_URL está configurada, agregarla a la lista
+if FRONTEND_URL and FRONTEND_URL != "*":
+    if FRONTEND_URL not in allowed_origins:
+        allowed_origins.append(FRONTEND_URL)
+
+# Agregar dominio de Railway del frontend si detectamos que estamos en Railway
+# Esto permite que funcione sin configurar FRONTEND_URL explícitamente
+railway_frontend_url = os.getenv("RAILWAY_STATIC_URL", "") or "https://travelai-frontend-production.up.railway.app"
+if railway_frontend_url and railway_frontend_url not in allowed_origins:
+    allowed_origins.append(railway_frontend_url)
+
+logger.info(f"🌐 CORS configurado para orígenes: {allowed_origins}")
 
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=allowed_origins,  # Permite todos en producción o específicos según configuración
+    allow_origins=allowed_origins,
     allow_credentials=True,
-    allow_methods=["*"],
+    allow_methods=["GET", "POST", "PUT", "DELETE", "OPTIONS", "HEAD", "PATCH"],
     allow_headers=["*"],
+    expose_headers=["*"],
 )
 
 
