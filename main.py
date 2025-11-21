@@ -102,11 +102,20 @@ if FRONTEND_URL and FRONTEND_URL != "*":
     if FRONTEND_URL not in allowed_origins:
         allowed_origins.append(FRONTEND_URL)
 
-# Agregar dominio de Railway del frontend si detectamos que estamos en Railway
+# Agregar dominio de Railway del frontend - hardcodeado para garantizar funcionamiento
 # Esto permite que funcione sin configurar FRONTEND_URL explícitamente
-railway_frontend_url = os.getenv("RAILWAY_STATIC_URL", "") or "https://travelai-frontend-production.up.railway.app"
-if railway_frontend_url and railway_frontend_url not in allowed_origins:
-    allowed_origins.append(railway_frontend_url)
+railway_frontend_urls = [
+    "https://travelai-frontend-production.up.railway.app",
+]
+# También intentar leer de variable de entorno si existe
+railway_env_url = os.getenv("RAILWAY_STATIC_URL", "")
+if railway_env_url and railway_env_url not in railway_frontend_urls:
+    railway_frontend_urls.append(railway_env_url)
+
+# Agregar todas las URLs de Railway a la lista de orígenes permitidos
+for url in railway_frontend_urls:
+    if url and url not in allowed_origins:
+        allowed_origins.append(url)
 
 logger.info(f"🌐 CORS configurado para orígenes: {allowed_origins}")
 
