@@ -4,7 +4,10 @@ FastAPI Backend para ViajeIA - Integración con Google Gemini, OpenWeatherMap y 
 import os
 import logging
 import asyncio
+import json
 from typing import Optional, List, Dict
+from collections import Counter
+from datetime import datetime
 from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
@@ -23,6 +26,47 @@ logging.basicConfig(
     format='%(asctime)s - %(name)s - %(levelname)s - %(message)s'
 )
 logger = logging.getLogger(__name__)
+
+# Sistema de métricas simple (en memoria - se puede persistir en archivo si es necesario)
+STATS_FILE = "stats.json"
+stats = {
+    "total_plans_generated": 0,
+    "destinations_counter": {},
+    "last_reset": datetime.now().isoformat()
+}
+
+# Cargar stats desde archivo si existe
+def load_stats():
+    """Carga estadísticas desde archivo si existe."""
+    global stats
+    try:
+        if os.path.exists(STATS_FILE):
+            with open(STATS_FILE, 'r') as f:
+                loaded_stats = json.load(f)
+                stats.update(loaded_stats)
+            logger.info(f"📊 Estadísticas cargadas: {stats['total_plans_generated']} planes generados")
+    except Exception as e:
+        logger.warning(f"⚠️  No se pudo cargar stats.json: {e}. Iniciando con valores por defecto.")
+
+def save_stats():
+    """Guarda estadísticas en archivo."""
+    try:
+        with open(STATS_FILE, 'w') as f:
+            json.dump(stats, f, indent=2)
+    except Exception as e:
+        logger.warning(f"⚠️  No se pudo guardar stats.json: {e}")
+
+def increment_plan_counter(destination: str):
+    """Incrementa el contador de planes y actualiza el ranking de destinos."""
+    global stats
+    stats["total_plans_generated"] += 1
+    if destination:
+        destination_lower = destination.strip().lower()
+        stats["destinations_counter"][destination_lower] = stats["destinations_counter"].get(destination_lower, 0) + 1
+    save_stats()
+
+# Cargar stats al iniciar
+load_stats()
 
 # Validar API KEY al iniciar
 GEMINI_API_KEY = os.getenv("GEMINI_API_KEY")
@@ -43,9 +87,13 @@ app = FastAPI(
 )
 
 # Configurar CORS para permitir requests del frontend React
+# En producción, permite todos los orígenes o lee desde variable de entorno
+FRONTEND_URL = os.getenv("FRONTEND_URL", "*")
+allowed_origins = ["*"] if FRONTEND_URL == "*" else [FRONTEND_URL, "http://localhost:3000", "http://localhost:5173"]
+
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["http://localhost:3000", "http://localhost:5173"],  # React dev servers comunes
+    allow_origins=allowed_origins,  # Permite todos en producción o específicos según configuración
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
@@ -125,6 +173,37 @@ async def health_check():
             "gemini_service": "unavailable",
             "error": str(e)
         }
+
+
+@app.get("/api/stats")
+async def get_stats():
+    """
+    Endpoint para obtener estadísticas de uso de la API.
+    
+    Returns:
+        Dict con:
+        - total_plans_generated: Número total de planes generados
+        - top_destinations: Lista de los destinos más populares
+    """
+    try:
+        # Obtener top 5 destinos
+        destinations_counter = Counter(stats["destinations_counter"])
+        top_destinations = [
+            {"destination": dest.capitalize(), "count": count}
+            for dest, count in destinations_counter.most_common(5)
+        ]
+        
+        return {
+            "total_plans_generated": stats["total_plans_generated"],
+            "top_destinations": top_destinations,
+            "last_reset": stats.get("last_reset", "N/A")
+        }
+    except Exception as e:
+        logger.error(f"❌ Error al obtener estadísticas: {e}")
+        raise HTTPException(
+            status_code=500,
+            detail="Error al obtener estadísticas"
+        )
 
 
 @app.post("/api/plan")
@@ -213,6 +292,9 @@ async def create_travel_plan(request: TravelRequest):
             # Opcional: agregar currency si se implementa en el futuro
         
         logger.info("✅ Recomendación generada con datos en tiempo real")
+        
+        # Incrementar contador de métricas
+        increment_plan_counter(destination)
         
         # Devolver respuesta con nueva estructura
         return {

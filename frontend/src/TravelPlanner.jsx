@@ -18,6 +18,9 @@ import jsPDF from 'jspdf';
 import html2canvas from 'html2canvas';
 import ItineraryDocument from './ItineraryDocument';
 
+// Constante para la URL de la API - Lee de variables de entorno o usa localhost como fallback
+const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:8000';
+
 const TravelPlanner = () => {
   // Estado único para el formulario estructurado
   const [formData, setFormData] = useState({
@@ -52,6 +55,9 @@ const TravelPlanner = () => {
   const [showFavorites, setShowFavorites] = useState(false);
   const [isFavorited, setIsFavorited] = useState(false);
 
+  // Estados para Métricas
+  const [stats, setStats] = useState({ total_plans_generated: 0 });
+
   // Cargar favoritos al iniciar
   useEffect(() => {
     const savedFavorites = localStorage.getItem('viajeia_favorites');
@@ -77,6 +83,46 @@ const TravelPlanner = () => {
     }
   }, [travelData, formData, favorites]);
 
+  // Cargar métricas al iniciar y refrescar periódicamente
+  useEffect(() => {
+    const fetchStats = async () => {
+      try {
+        const response = await fetch(`${API_URL}/api/stats`);
+        if (response.ok) {
+          const data = await response.json();
+          setStats(data);
+        }
+      } catch (err) {
+        // Silenciar errores de stats - no crítico
+        console.debug('No se pudieron cargar estadísticas:', err);
+      }
+    };
+
+    fetchStats();
+    // Refrescar cada 30 segundos
+    const interval = setInterval(fetchStats, 30000);
+    return () => clearInterval(interval);
+  }, []);
+
+  // Refrescar stats después de planificar
+  useEffect(() => {
+    if (travelData) {
+      const fetchStats = async () => {
+        try {
+          const response = await fetch(`${API_URL}/api/stats`);
+          if (response.ok) {
+            const data = await response.json();
+            setStats(data);
+          }
+        } catch (err) {
+          // Silenciar errores
+        }
+      };
+      // Pequeño delay para que el backend haya actualizado
+      setTimeout(fetchStats, 500);
+    }
+  }, [travelData]);
+
   /**
    * Función que maneja los cambios en los campos del formulario
    */
@@ -90,7 +136,7 @@ const TravelPlanner = () => {
 
   /**
    * Función que se ejecuta cuando el usuario hace clic en "Planificar Aventura"
-   * Conecta con el backend FastAPI en http://localhost:8000/api/plan
+   * Conecta con el backend FastAPI usando API_URL configurada desde variables de entorno
    */
   const handlePlanificar = async () => {
     // Validar que el destino no esté vacío
@@ -107,7 +153,7 @@ const TravelPlanner = () => {
 
     try {
       // Llamar al backend FastAPI
-      const apiResponse = await fetch('http://localhost:8000/api/plan', {
+      const apiResponse = await fetch(`${API_URL}/api/plan`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -144,7 +190,7 @@ const TravelPlanner = () => {
       let errorMessage = 'Ocurrió un error consultando a la IA';
       
       if (err.message.includes('fetch') || err.message.includes('Failed to fetch')) {
-        errorMessage = 'No pudimos conectar con el servidor. Asegúrate de que el backend esté corriendo en http://localhost:8000';
+        errorMessage = `No pudimos conectar con el servidor. Verifica que el backend esté corriendo en ${API_URL}`;
       } else if (err.message) {
         errorMessage = err.message;
       }
@@ -171,7 +217,7 @@ const TravelPlanner = () => {
 
     try {
       // Llamar al endpoint /api/chat con historial (sin incluir el nuevo mensaje, ya que va en el campo 'message')
-      const apiResponse = await fetch('http://localhost:8000/api/chat', {
+      const apiResponse = await fetch(`${API_URL}/api/chat`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -779,6 +825,46 @@ const TravelPlanner = () => {
                 </div>
               )}
 
+              {/* Sección Premium */}
+              <div className="bg-gradient-to-br from-amber-50 via-yellow-50 to-amber-100 rounded-2xl border-2 border-amber-300/50 shadow-xl p-8 md:p-10 relative overflow-hidden">
+                {/* Decoración de fondo */}
+                <div className="absolute top-0 right-0 w-32 h-32 bg-gradient-to-br from-amber-200/30 to-yellow-200/30 rounded-full blur-3xl"></div>
+                <div className="absolute bottom-0 left-0 w-24 h-24 bg-gradient-to-tr from-yellow-200/30 to-amber-200/30 rounded-full blur-2xl"></div>
+                
+                <div className="relative z-10">
+                  <div className="flex items-center gap-3 mb-4">
+                    <span className="text-4xl">👑</span>
+                    <h3 className="text-3xl font-bold text-slate-800">ViajeIA PRO</h3>
+                  </div>
+                  
+                  <p className="text-lg text-slate-700 mb-6 leading-relaxed">
+                    Próximamente: Reservas directas, Alertas de precios y Guías offline.
+                  </p>
+                  
+                  <p className="text-sm text-slate-600 mb-6">
+                    Accede a funcionalidades premium que harán tu experiencia de viaje aún mejor. 
+                    Únete a nuestra lista de espera para ser de los primeros en conocerlas.
+                  </p>
+                  
+                  <button
+                    onClick={() => {
+                      alert('¡Gracias por tu interés! Te notificaremos cuando ViajeIA PRO esté disponible. 🎉');
+                    }}
+                    className="px-6 py-3 
+                               bg-gradient-to-r from-amber-500 to-yellow-500 
+                               hover:from-amber-600 hover:to-yellow-600
+                               text-white font-semibold rounded-xl
+                               shadow-lg hover:shadow-xl
+                               transition-all duration-300
+                               transform hover:scale-105 active:scale-95
+                               flex items-center gap-2"
+                  >
+                    <span>Unirse a la lista de espera</span>
+                    <span className="text-lg">→</span>
+                  </button>
+                </div>
+              </div>
+
               {/* Interfaz de Chat Continuo */}
               <div className="bg-white/80 backdrop-blur-sm rounded-2xl border border-slate-200/50 shadow-lg p-6">
                 <div className="flex items-center gap-3 mb-4 pb-4 border-b border-slate-200">
@@ -980,11 +1066,16 @@ const TravelPlanner = () => {
           </div>
         )}
 
-        {/* Footer minimalista */}
-        <div className="mt-8 text-center">
+        {/* Footer con métricas */}
+        <div className="mt-8 text-center space-y-2">
           <p className="text-sm text-slate-500 font-medium">
             Powered by <span className="text-blue-600 font-semibold">Google Gemini AI</span> ✨
           </p>
+          {stats.total_plans_generated > 0 && (
+            <p className="text-sm text-slate-400 font-medium">
+              🌍 Viajes planeados hoy: <span className="text-slate-600 font-semibold">{stats.total_plans_generated}</span>
+            </p>
+          )}
         </div>
       </div>
 
