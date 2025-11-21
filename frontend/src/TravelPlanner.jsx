@@ -18,8 +18,13 @@ import jsPDF from 'jspdf';
 import html2canvas from 'html2canvas';
 import ItineraryDocument from './ItineraryDocument';
 
-// Constante para la URL de la API - Lee de variables de entorno o usa localhost como fallback
-const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:8000';
+// Constante para la URL de la API - Lee de variables de entorno o usa fallback
+// NOTA: Las variables VITE_* se inyectan en tiempo de BUILD, no en runtime
+// En Railway, asegúrate de configurar VITE_API_URL antes del build
+const API_URL = import.meta.env.VITE_API_URL || 
+                (typeof window !== 'undefined' && window.location.hostname.includes('railway.app') 
+                  ? 'https://travelai-production-8955.up.railway.app'  // Fallback para Railway
+                  : 'http://localhost:8000');  // Fallback para desarrollo local
 
 const TravelPlanner = () => {
   // Estado único para el formulario estructurado
