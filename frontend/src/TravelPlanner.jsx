@@ -1,0 +1,999 @@
+/**
+ * TravelPlanner.jsx - Componente principal de ViajeIA
+ * 
+ * Interfaz moderna y responsive para planificar viajes usando Google Gemini AI
+ * Con funcionalidades Pro: Chat Continuo, Exportación PDF y Favoritos
+ * 
+ * Dependencias requeridas:
+ * - react-markdown
+ * - lucide-react
+ * - jspdf
+ * - tailwindcss (configurado en el proyecto)
+ */
+
+import React, { useState, useEffect, useRef } from 'react';
+import ReactMarkdown from 'react-markdown';
+import { Plane, Loader2, Send, AlertCircle, Cloud, Clock, Thermometer, Heart, Download, BookOpen, X, MessageCircle, User, Bot } from 'lucide-react';
+import jsPDF from 'jspdf';
+import html2canvas from 'html2canvas';
+import ItineraryDocument from './ItineraryDocument';
+
+const TravelPlanner = () => {
+  // Estado único para el formulario estructurado
+  const [formData, setFormData] = useState({
+    destination: '',
+    date: '',
+    budget: '',
+    style: ''
+  });
+  
+  // Estado para almacenar la respuesta completa con datos en tiempo real
+  const [travelData, setTravelData] = useState(null);
+  
+  // Estado para manejar el loading (mientras esperamos la respuesta)
+  const [loading, setLoading] = useState(false);
+  
+  // Estado para manejar errores
+  const [error, setError] = useState('');
+
+  // Estados para Chat Continuo
+  const [chatHistory, setChatHistory] = useState([]);
+  const [chatMessage, setChatMessage] = useState('');
+  const [chatLoading, setChatLoading] = useState(false);
+  const chatEndRef = useRef(null);
+  
+  // Scroll automático al final del chat cuando hay nuevos mensajes
+  useEffect(() => {
+    chatEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+  }, [chatHistory, chatLoading]);
+
+  // Estados para Favoritos
+  const [favorites, setFavorites] = useState([]);
+  const [showFavorites, setShowFavorites] = useState(false);
+  const [isFavorited, setIsFavorited] = useState(false);
+
+  // Cargar favoritos al iniciar
+  useEffect(() => {
+    const savedFavorites = localStorage.getItem('viajeia_favorites');
+    if (savedFavorites) {
+      setFavorites(JSON.parse(savedFavorites));
+    }
+  }, []);
+
+  // Verificar si el viaje actual está en favoritos
+  useEffect(() => {
+    if (travelData && formData.destination) {
+      const currentTrip = {
+        destination: formData.destination,
+        date: formData.date,
+        budget: formData.budget,
+        style: formData.style
+      };
+      const isSaved = favorites.some(fav => 
+        fav.destination === currentTrip.destination &&
+        fav.date === currentTrip.date
+      );
+      setIsFavorited(isSaved);
+    }
+  }, [travelData, formData, favorites]);
+
+  /**
+   * Función que maneja los cambios en los campos del formulario
+   */
+  const handleInputChange = (e) => {
+    const { name, value } = e.target;
+    setFormData(prev => ({
+      ...prev,
+      [name]: value
+    }));
+  };
+
+  /**
+   * Función que se ejecuta cuando el usuario hace clic en "Planificar Aventura"
+   * Conecta con el backend FastAPI en http://localhost:8000/api/plan
+   */
+  const handlePlanificar = async () => {
+    // Validar que el destino no esté vacío
+    if (!formData.destination.trim()) {
+      setError('Por favor, ingresa un destino para tu viaje');
+      return;
+    }
+
+    // Limpiar errores previos, respuesta anterior y chat
+    setError('');
+    setTravelData(null);
+    setChatHistory([]);
+    setLoading(true);
+
+    try {
+      // Llamar al backend FastAPI
+      const apiResponse = await fetch('http://localhost:8000/api/plan', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          destination: formData.destination.trim(),
+          date: formData.date || '',
+          budget: formData.budget || '',
+          style: formData.style || ''
+        }),
+      });
+
+      if (!apiResponse.ok) {
+        const errorData = await apiResponse.json();
+        throw new Error(errorData.detail || 'Error al consultar la IA');
+      }
+
+      const data = await apiResponse.json();
+      setTravelData(data);
+      
+      // Agregar el plan inicial al historial de chat
+      setChatHistory([
+        {
+          role: 'user',
+          parts: `Planifica un viaje a ${formData.destination}${formData.date ? ` para ${formData.date}` : ''}${formData.budget ? ` con presupuesto ${formData.budget}` : ''}${formData.style ? ` y estilo ${formData.style}` : ''}`
+        },
+        {
+          role: 'model',
+          parts: data.gemini_response
+        }
+      ]);
+      
+    } catch (err) {
+      let errorMessage = 'Ocurrió un error consultando a la IA';
+      
+      if (err.message.includes('fetch') || err.message.includes('Failed to fetch')) {
+        errorMessage = 'No pudimos conectar con el servidor. Asegúrate de que el backend esté corriendo en http://localhost:8000';
+      } else if (err.message) {
+        errorMessage = err.message;
+      }
+      
+      setError(errorMessage);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  /**
+   * Función para enviar un mensaje en el chat continuo
+   */
+  const handleChatSend = async () => {
+    if (!chatMessage.trim() || !travelData) return;
+
+    const userMessage = chatMessage.trim();
+    setChatMessage('');
+    setChatLoading(true);
+
+    // Agregar mensaje del usuario al historial visual (para mostrar en la UI)
+    const newUserMessage = { role: 'user', parts: userMessage };
+    setChatHistory(prev => [...prev, newUserMessage]);
+
+    try {
+      // Llamar al endpoint /api/chat con historial (sin incluir el nuevo mensaje, ya que va en el campo 'message')
+      const apiResponse = await fetch('http://localhost:8000/api/chat', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          destination: formData.destination.trim(),
+          date: formData.date || '',
+          budget: formData.budget || '',
+          style: formData.style || '',
+          message: userMessage,
+          history: chatHistory  // Historial sin el nuevo mensaje (ya que va en 'message')
+        }),
+      });
+
+      if (!apiResponse.ok) {
+        const errorData = await apiResponse.json();
+        throw new Error(errorData.detail || 'Error al consultar la IA');
+      }
+
+      const data = await apiResponse.json();
+      
+      // Agregar respuesta del modelo al historial
+      const newModelMessage = { role: 'model', parts: data.gemini_response };
+      setChatHistory(prev => [...prev, newModelMessage]);
+
+      // Actualizar travelData con la nueva respuesta (opcional, para mantener consistencia)
+      setTravelData(prev => ({
+        ...prev,
+        gemini_response: data.gemini_response
+      }));
+
+    } catch (err) {
+      setError(err.message || 'Error al enviar mensaje');
+      // Remover el mensaje del usuario si falló
+      setChatHistory(prev => prev.slice(0, -1));
+    } finally {
+      setChatLoading(false);
+    }
+  };
+
+  /**
+   * Exporta el plan de viaje a PDF estilo revista usando html2canvas y jsPDF.
+   * 
+   * Estrategia "Smart Canvas": Genera un PDF de altura dinámica (una sola página larga tipo infografía)
+   * que garantiza que el diseño de revista se mantenga intacto de principio a fin.
+   * 
+   * Proceso:
+   * 1. Espera a que el componente ItineraryDocument se renderice completamente
+   * 2. Oculta elementos de UI que no deben aparecer en el PDF (botones de descarga)
+   * 3. Configura todas las imágenes con crossOrigin="anonymous" para evitar problemas CORS
+   * 4. Hace visible temporalmente el elemento oculto para que html2canvas pueda capturarlo
+   * 5. Espera a que todas las imágenes se carguen completamente (con timeout de 5s por imagen)
+   * 6. Captura el elemento usando html2canvas con escala 2x para alta calidad
+   * 7. Calcula las dimensiones del PDF en mm basándose en los píxeles del canvas
+   * 8. Crea un PDF con dimensiones exactas del contenido (página dinámica)
+   * 9. Restaura los estilos originales del elemento y los botones de UI
+   * 
+   * @throws {Error} Si no se encuentra el elemento #itinerary-document o si falla la generación del PDF
+   */
+  const handleExportPDF = async () => {
+    if (!travelData) return;
+
+    try {
+      // Mostrar indicador de carga
+      setLoading(true);
+      setError('');
+
+      // Esperar un momento para que el componente se renderice completamente
+      await new Promise(resolve => setTimeout(resolve, 1000));
+
+      // Buscar el elemento del documento oculto
+      const element = document.getElementById('itinerary-document');
+      
+      if (!element) {
+        throw new Error('No se encontró el componente del documento. Asegúrate de que el plan esté cargado.');
+      }
+
+      // Limpieza: Ocultar elementos de UI que no deben aparecer en el PDF
+      const downloadButtons = document.querySelectorAll('button[title="Descargar PDF"]');
+      const originalButtonStyles = [];
+      downloadButtons.forEach(btn => {
+        originalButtonStyles.push({
+          element: btn,
+          display: btn.style.display,
+          visibility: btn.style.visibility
+        });
+        btn.style.display = 'none';
+        btn.style.visibility = 'hidden';
+      });
+
+      // Asegurar que todas las imágenes tengan crossOrigin="anonymous" para CORS
+      const images = element.querySelectorAll('img');
+      images.forEach(img => {
+        if (!img.hasAttribute('crossOrigin')) {
+          img.setAttribute('crossOrigin', 'anonymous');
+        }
+      });
+
+      // Hacer visible temporalmente el elemento para que html2canvas pueda capturarlo
+      const originalStyles = {
+        position: element.style.position,
+        left: element.style.left,
+        top: element.style.top,
+        zIndex: element.style.zIndex,
+        visibility: element.style.visibility
+      };
+      
+      element.style.position = 'absolute';
+      element.style.left = '-9999px';
+      element.style.top = '0';
+      element.style.zIndex = '9999';
+      element.style.visibility = 'visible';
+
+      // Esperar a que las imágenes se carguen completamente
+      const imagePromises = Array.from(images).map(img => {
+        if (img.complete && img.naturalHeight !== 0) {
+          return Promise.resolve();
+        }
+        return new Promise((resolve) => {
+          const timeout = setTimeout(() => {
+            resolve(); // Continuar aunque falle una imagen (timeout de 5s)
+          }, 5000);
+          
+          img.onload = () => {
+            clearTimeout(timeout);
+            resolve();
+          };
+          img.onerror = () => {
+            clearTimeout(timeout);
+            resolve(); // Continuar aunque falle una imagen
+          };
+        });
+      });
+      await Promise.all(imagePromises);
+
+      // Configurar html2canvas con opciones para alta calidad y CORS
+      const canvas = await html2canvas(element, {
+        useCORS: true, // Importante para cargar imágenes externas (Unsplash)
+        allowTaint: true, // Permitir imágenes con taint (necesario para CORS)
+        scale: 2, // Resolución alta (2x para balance entre calidad y tamaño)
+        logging: false,
+        backgroundColor: '#ffffff',
+        width: element.scrollWidth,
+        height: element.scrollHeight,
+        windowWidth: element.scrollWidth,
+        windowHeight: element.scrollHeight,
+        onclone: (clonedDoc) => {
+          // Asegurar que el clon también tenga las imágenes visibles y con CORS
+          const clonedElement = clonedDoc.getElementById('itinerary-document');
+          if (clonedElement) {
+            clonedElement.style.visibility = 'visible';
+            clonedElement.style.position = 'absolute';
+            clonedElement.style.left = '-9999px';
+            
+            // Asegurar crossOrigin en el clon también
+            const clonedImages = clonedElement.querySelectorAll('img');
+            clonedImages.forEach(img => {
+              if (!img.hasAttribute('crossOrigin')) {
+                img.setAttribute('crossOrigin', 'anonymous');
+              }
+            });
+          }
+        }
+      });
+
+      // Obtener dimensiones del canvas
+      const imgWidth = canvas.width;
+      const imgHeight = canvas.height;
+
+      // Convertir canvas a imagen
+      const imgData = canvas.toDataURL('image/png', 1.0);
+
+      // Restaurar estilos originales del elemento
+      element.style.position = originalStyles.position;
+      element.style.left = originalStyles.left;
+      element.style.top = originalStyles.top;
+      element.style.zIndex = originalStyles.zIndex;
+      element.style.visibility = originalStyles.visibility;
+
+      // Restaurar botones de UI
+      originalButtonStyles.forEach(({ element: btn, display, visibility }) => {
+        btn.style.display = display;
+        btn.style.visibility = visibility;
+      });
+
+      // PDF DINÁMICO: Inicializar jsPDF con el tamaño exacto del contenido
+      // Convertir píxeles a mm (asumiendo 96 DPI estándar: 1mm = 3.779527559 pixels)
+      const mmPerPixel = 0.264583333; // 1 pixel = 0.264583333 mm (a 96 DPI)
+      const pdfWidthMm = imgWidth * mmPerPixel;
+      const pdfHeightMm = imgHeight * mmPerPixel;
+
+      // Crear PDF con dimensiones exactas del contenido (página dinámica)
+      const pdf = new jsPDF({
+        orientation: 'p',
+        unit: 'mm',
+        format: [pdfWidthMm, pdfHeightMm] // ¡El PDF tendrá el tamaño exacto de la imagen!
+      });
+
+      // Agregar la imagen en (0, 0) con las dimensiones exactas
+      pdf.addImage(imgData, 'PNG', 0, 0, pdfWidthMm, pdfHeightMm, undefined, 'FAST');
+
+      // Generar nombre de archivo
+      const fileName = `ViajeIA_${formData.destination.replace(/\s+/g, '_')}_${new Date().toISOString().split('T')[0]}.pdf`;
+      
+      // Guardar PDF
+      pdf.save(fileName);
+      
+      setLoading(false);
+      
+    } catch (error) {
+      // Asegurar que el elemento se oculte incluso si hay error
+      const element = document.getElementById('itinerary-document');
+      if (element) {
+        element.style.position = 'absolute';
+        element.style.left = '-9999px';
+        element.style.visibility = 'hidden';
+        element.style.zIndex = '-1';
+      }
+      
+      // Mensaje de error más descriptivo
+      const errorMessage = error.message || 'Error desconocido al generar el PDF';
+      setError(`Error al generar el PDF: ${errorMessage}. Por favor, intenta nuevamente.`);
+      setLoading(false);
+    }
+  };
+
+  /**
+   * Función para agregar/quitar de favoritos
+   */
+  const handleToggleFavorite = () => {
+    if (!travelData || !formData.destination) return;
+
+    const currentTrip = {
+      destination: formData.destination,
+      date: formData.date,
+      budget: formData.budget,
+      style: formData.style,
+      summary: travelData.gemini_response.substring(0, 200) + '...',
+      createdAt: new Date().toISOString()
+    };
+
+    if (isFavorited) {
+      // Remover de favoritos
+      const updatedFavorites = favorites.filter(fav => 
+        !(fav.destination === currentTrip.destination && fav.date === currentTrip.date)
+      );
+      setFavorites(updatedFavorites);
+      localStorage.setItem('viajeia_favorites', JSON.stringify(updatedFavorites));
+      setIsFavorited(false);
+    } else {
+      // Agregar a favoritos
+      const updatedFavorites = [...favorites, currentTrip];
+      setFavorites(updatedFavorites);
+      localStorage.setItem('viajeia_favorites', JSON.stringify(updatedFavorites));
+      setIsFavorited(true);
+    }
+  };
+
+  /**
+   * Función para cargar un viaje desde favoritos
+   */
+  const handleLoadFavorite = (favorite) => {
+    setFormData({
+      destination: favorite.destination,
+      date: favorite.date || '',
+      budget: favorite.budget || '',
+      style: favorite.style || ''
+    });
+    setShowFavorites(false);
+    // Opcional: auto-planificar
+    // handlePlanificar();
+  };
+
+  /**
+   * Función para eliminar un favorito
+   */
+  const handleDeleteFavorite = (index) => {
+    const updatedFavorites = favorites.filter((_, i) => i !== index);
+    setFavorites(updatedFavorites);
+    localStorage.setItem('viajeia_favorites', JSON.stringify(updatedFavorites));
+  };
+
+  return (
+    <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-50 flex items-center justify-center py-12 px-4 sm:px-6 lg:px-8">
+      <div className="max-w-3xl w-full">
+        {/* Glass Card Principal */}
+        <div className="bg-white/80 backdrop-blur-xl rounded-2xl shadow-xl border border-white/20 p-8 sm:p-10 md:p-12">
+          
+          {/* Header con título animado y botones Pro */}
+          <div className="text-center mb-10">
+            <div className="flex items-center justify-center gap-3 mb-3">
+              <Plane className="w-9 h-9 text-blue-600 animate-pulse" />
+              <h1 className="text-5xl font-bold text-slate-800 tracking-tight">
+                ViajeIA
+              </h1>
+            </div>
+            <p className="text-slate-600 text-lg mt-3 font-medium">
+              Tu asistente inteligente para planificar aventuras inolvidables
+            </p>
+            
+            {/* Botones Pro: Favoritos y Mis Viajes */}
+            <div className="flex items-center justify-center gap-3 mt-4">
+              {travelData && (
+                <button
+                  onClick={handleToggleFavorite}
+                  className={`p-2 rounded-lg transition-all duration-300 ${
+                    isFavorited
+                      ? 'bg-red-100 text-red-600 hover:bg-red-200'
+                      : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
+                  }`}
+                  title={isFavorited ? 'Quitar de favoritos' : 'Agregar a favoritos'}
+                >
+                  <Heart className={`w-5 h-5 ${isFavorited ? 'fill-current' : ''}`} />
+                </button>
+              )}
+              <button
+                onClick={() => setShowFavorites(true)}
+                className="p-2 rounded-lg bg-slate-100 text-slate-600 hover:bg-slate-200 transition-all duration-300"
+                title="Mis Viajes Guardados"
+              >
+                <BookOpen className="w-5 h-5" />
+              </button>
+              {travelData && (
+                <button
+                  onClick={handleExportPDF}
+                  className="p-2 rounded-lg bg-blue-100 text-blue-600 hover:bg-blue-200 transition-all duration-300"
+                  title="Descargar PDF"
+                >
+                  <Download className="w-5 h-5" />
+                </button>
+              )}
+            </div>
+          </div>
+
+          {/* Formulario estructurado estilo Airbnb con Grid Layout */}
+          <div className="mb-6">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+              
+              {/* Campo: Destino */}
+              <div className="md:col-span-2">
+                <label htmlFor="destination" className="block text-sm font-semibold text-slate-700 mb-3">
+                  Destino
+                </label>
+                <input
+                  type="text"
+                  id="destination"
+                  name="destination"
+                  value={formData.destination}
+                  onChange={handleInputChange}
+                  placeholder="¿París, Bali, Nueva York?"
+                  disabled={loading}
+                  className="w-full px-5 py-4 
+                             bg-white border border-slate-200 rounded-xl
+                             focus:outline-none focus:ring-4 focus:ring-blue-500/20 focus:border-blue-500
+                             disabled:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-60
+                             text-slate-800 placeholder-slate-400 placeholder:font-normal
+                             transition-all duration-300
+                             shadow-sm hover:shadow-md focus:shadow-lg"
+                />
+              </div>
+
+              {/* Campo: Fechas */}
+              <div>
+                <label htmlFor="date" className="block text-sm font-semibold text-slate-700 mb-3">
+                  ¿Cuándo viajas?
+                </label>
+                <input
+                  type="date"
+                  id="date"
+                  name="date"
+                  value={formData.date}
+                  onChange={handleInputChange}
+                  disabled={loading}
+                  min={new Date().toISOString().split('T')[0]}
+                  className="w-full px-5 py-4 
+                             bg-white border border-slate-200 rounded-xl
+                             focus:outline-none focus:ring-4 focus:ring-blue-500/20 focus:border-blue-500
+                             disabled:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-60
+                             text-slate-800
+                             transition-all duration-300
+                             shadow-sm hover:shadow-md focus:shadow-lg"
+                />
+              </div>
+
+              {/* Campo: Presupuesto */}
+              <div>
+                <label htmlFor="budget" className="block text-sm font-semibold text-slate-700 mb-3">
+                  Presupuesto
+                </label>
+                <select
+                  id="budget"
+                  name="budget"
+                  value={formData.budget}
+                  onChange={handleInputChange}
+                  disabled={loading}
+                  className="w-full px-5 py-4 
+                             bg-white border border-slate-200 rounded-xl
+                             focus:outline-none focus:ring-4 focus:ring-blue-500/20 focus:border-blue-500
+                             disabled:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-60
+                             text-slate-800
+                             transition-all duration-300
+                             shadow-sm hover:shadow-md focus:shadow-lg"
+                >
+                  <option value="">Selecciona tu presupuesto</option>
+                  <option value="Mochilero 🎒">Mochilero 🎒</option>
+                  <option value="Moderado ⚖️">Moderado ⚖️</option>
+                  <option value="Lujo ✨">Lujo ✨</option>
+                </select>
+              </div>
+
+              {/* Campo: Estilo de Viaje */}
+              <div>
+                <label htmlFor="style" className="block text-sm font-semibold text-slate-700 mb-3">
+                  Estilo de Viaje
+                </label>
+                <select
+                  id="style"
+                  name="style"
+                  value={formData.style}
+                  onChange={handleInputChange}
+                  disabled={loading}
+                  className="w-full px-5 py-4 
+                             bg-white border border-slate-200 rounded-xl
+                             focus:outline-none focus:ring-4 focus:ring-blue-500/20 focus:border-blue-500
+                             disabled:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-60
+                             text-slate-800
+                             transition-all duration-300
+                             shadow-sm hover:shadow-md focus:shadow-lg"
+                >
+                  <option value="">Selecciona tu estilo</option>
+                  <option value="Aventura 🧗">Aventura 🧗</option>
+                  <option value="Relax 🏖️">Relax 🏖️</option>
+                  <option value="Cultura 🏛️">Cultura 🏛️</option>
+                  <option value="Gastronomía 🌮">Gastronomía 🌮</option>
+                </select>
+              </div>
+
+            </div>
+          </div>
+
+          {/* Botón con gradiente elegante */}
+          <div className="mb-6">
+            <button
+              onClick={handlePlanificar}
+              disabled={loading || !formData.destination.trim()}
+              className="w-full flex items-center justify-center gap-3
+                         bg-gradient-to-r from-blue-600 to-blue-500 
+                         hover:from-blue-700 hover:to-blue-600
+                         disabled:from-slate-300 disabled:to-slate-300
+                         text-white font-semibold py-4 px-6 rounded-xl
+                         shadow-lg hover:shadow-xl disabled:shadow-none
+                         transition-all duration-300
+                         disabled:cursor-not-allowed
+                         transform hover:scale-[1.02] active:scale-[0.98] disabled:transform-none
+                         relative overflow-hidden group"
+            >
+              <span className="relative z-10 flex items-center gap-3">
+                {loading ? (
+                  <>
+                    <Loader2 className="w-5 h-5 animate-spin" />
+                    <span>Consultando satélites...</span>
+                  </>
+                ) : (
+                  <>
+                    <Send className="w-5 h-5 group-hover:translate-x-1 transition-transform duration-300" />
+                    <span>Planificar Aventura</span>
+                  </>
+                )}
+              </span>
+              <div className="absolute inset-0 bg-white/20 opacity-0 group-hover:opacity-100 transition-opacity duration-300"></div>
+            </button>
+          </div>
+
+          {/* Mensaje de Error elegante */}
+          {error && (
+            <div className="mb-6 p-5 bg-red-50/80 backdrop-blur-sm border-l-4 border-red-500 rounded-xl
+                          flex items-start gap-3 animate-in fade-in duration-300 shadow-md">
+              <AlertCircle className="w-6 h-6 text-red-600 flex-shrink-0 mt-0.5" />
+              <div className="flex-1">
+                <p className="text-red-800 font-semibold mb-1">Error de conexión</p>
+                <p className="text-red-600 text-sm leading-relaxed">{error}</p>
+              </div>
+            </div>
+          )}
+
+          {/* Dashboard de Respuesta: Diseño Moderno con Imágenes y Widgets */}
+          {travelData && (
+            <div className="mt-8 space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-500">
+              
+              {/* Panel Superior (Hero) - Banner con Primera Imagen */}
+              {travelData.images && travelData.images.length > 0 && (
+                <div className="relative w-full h-64 md:h-80 lg:h-96 rounded-2xl overflow-hidden shadow-2xl">
+                  <img 
+                    src={travelData.images[0]} 
+                    alt={formData.destination}
+                    className="w-full h-full object-cover"
+                  />
+                  <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-black/20 to-transparent"></div>
+                  <div className="absolute bottom-0 left-0 right-0 p-6 md:p-8">
+                    <h2 className="text-3xl md:text-4xl font-bold text-white mb-2">
+                      {formData.destination}
+                    </h2>
+                    {travelData.weather && (
+                      <p className="text-white/90 text-lg">
+                        {travelData.weather.condition}
+                      </p>
+                    )}
+                  </div>
+                </div>
+              )}
+
+              {/* Layout Principal: Sidebar + Contenido */}
+              <div className="grid grid-cols-1 lg:grid-cols-4 gap-6">
+                
+                {/* Panel Lateral (Sidebar) - Widgets */}
+                <div className="lg:col-span-1 space-y-4">
+                  
+                  {/* Widget: Clima */}
+                  {travelData.weather && travelData.weather.temp !== null && (
+                    <div className="bg-gradient-to-br from-blue-500 to-blue-600 rounded-xl p-6 shadow-lg text-white">
+                      <div className="flex items-center gap-3 mb-4">
+                        <Cloud className="w-6 h-6" />
+                        <h3 className="font-semibold text-lg">Clima Actual</h3>
+                      </div>
+                      <div className="flex items-baseline gap-2 mb-2">
+                        <span className="text-4xl font-bold">{travelData.weather.temp}°</span>
+                        <span className="text-xl text-blue-100">C</span>
+                      </div>
+                      {travelData.weather.condition && (
+                        <p className="text-blue-100 mb-3">{travelData.weather.condition}</p>
+                      )}
+                      {travelData.weather.feels_like && (
+                        <div className="flex items-center gap-2 text-blue-100 text-sm">
+                          <Thermometer className="w-4 h-4" />
+                          <span>Sensación: {travelData.weather.feels_like}°C</span>
+                        </div>
+                      )}
+                    </div>
+                  )}
+
+                  {/* Widget: Hora Local */}
+                  {travelData.info && travelData.info.local_time && (
+                    <div className="bg-gradient-to-br from-indigo-500 to-indigo-600 rounded-xl p-6 shadow-lg text-white">
+                      <div className="flex items-center gap-3 mb-4">
+                        <Clock className="w-6 h-6" />
+                        <h3 className="font-semibold text-lg">Hora Local</h3>
+                      </div>
+                      <div className="text-3xl font-bold">{travelData.info.local_time}</div>
+                    </div>
+                  )}
+
+                </div>
+
+                {/* Panel Central - Plan de Viaje */}
+                <div className="lg:col-span-3">
+                  <div className="bg-white/80 backdrop-blur-sm rounded-2xl border border-slate-200/50 shadow-lg p-6 md:p-8">
+                    <div className="flex items-center gap-3 mb-6 pb-4 border-b border-slate-200">
+                      <div className="p-2 bg-blue-100 rounded-lg">
+                        <Plane className="w-5 h-5 text-blue-600" />
+                      </div>
+                      <h2 className="text-2xl font-bold text-slate-800">
+                        Tu Plan de Viaje por Alex
+                      </h2>
+                    </div>
+                    
+                    {/* ReactMarkdown con estilos profesionales */}
+                    <div className="markdown-content text-slate-700 leading-relaxed
+                                  [&>h1]:text-3xl [&>h1]:font-bold [&>h1]:text-slate-800 [&>h1]:mt-8 [&>h1]:mb-4 [&>h1]:pb-3 [&>h1]:border-b [&>h1]:border-slate-200
+                                  [&>h2]:text-2xl [&>h2]:font-bold [&>h2]:text-slate-800 [&>h2]:mt-6 [&>h2]:mb-3
+                                  [&>h3]:text-xl [&>h3]:font-bold [&>h3]:text-slate-800 [&>h3]:mt-5 [&>h3]:mb-2
+                                  [&>p]:my-4 [&>p]:leading-relaxed [&>p]:text-slate-700
+                                  [&>strong]:font-semibold [&>strong]:text-slate-900
+                                  [&>em]:italic [&>em]:text-slate-600
+                                  [&>ul]:my-4 [&>ul]:list-disc [&>ul]:ml-6 [&>ul]:space-y-3 [&>ul>li]:leading-relaxed [&>ul>li]:marker:text-blue-600
+                                  [&>ol]:my-4 [&>ol]:list-decimal [&>ol]:ml-6 [&>ol]:space-y-3 [&>ol>li]:leading-relaxed [&>ol>li]:marker:text-blue-600
+                                  [&>a]:text-blue-600 [&>a]:no-underline [&>a]:font-medium hover:[&>a]:underline
+                                  [&>code]:text-blue-700 [&>code]:bg-blue-50 [&>code]:px-1.5 [&>code]:py-0.5 [&>code]:rounded [&>code]:text-sm [&>code]:font-mono
+                                  [&>blockquote]:border-l-4 [&>blockquote]:border-blue-300 [&>blockquote]:pl-4 [&>blockquote]:italic [&>blockquote]:text-slate-600 [&>blockquote]:my-4
+                                  [&>hr]:border-slate-200 [&>hr]:my-8 [&>hr]:border-t">
+                      <ReactMarkdown>{travelData.gemini_response}</ReactMarkdown>
+                    </div>
+                  </div>
+                </div>
+
+              </div>
+
+              {/* Galería - Otras Imágenes */}
+              {travelData.images && travelData.images.length > 1 && (
+                <div className="bg-white/80 backdrop-blur-sm rounded-2xl border border-slate-200/50 shadow-lg p-6">
+                  <h3 className="text-xl font-bold text-slate-800 mb-4">Galería de Imágenes</h3>
+                  <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
+                    {travelData.images.slice(1).map((imageUrl, index) => (
+                      <div 
+                        key={index}
+                        className="relative aspect-video rounded-lg overflow-hidden shadow-md hover:shadow-xl transition-shadow duration-300 group"
+                      >
+                        <img 
+                          src={imageUrl} 
+                          alt={`${formData.destination} ${index + 2}`}
+                          className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-300"
+                        />
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {/* Interfaz de Chat Continuo */}
+              <div className="bg-white/80 backdrop-blur-sm rounded-2xl border border-slate-200/50 shadow-lg p-6">
+                <div className="flex items-center gap-3 mb-4 pb-4 border-b border-slate-200">
+                  <MessageCircle className="w-5 h-5 text-blue-600" />
+                  <h3 className="text-xl font-bold text-slate-800">Chat con Alex</h3>
+                </div>
+
+                {/* Historial de Chat */}
+                <div 
+                  className="max-h-96 overflow-y-auto mb-4 space-y-3 pr-2"
+                  style={{ scrollbarWidth: 'none', msOverflowStyle: 'none' }}
+                >
+                  <style>{`
+                    div[style*="scrollbarWidth"]::-webkit-scrollbar {
+                      display: none;
+                    }
+                  `}</style>
+                  {chatHistory.map((msg, index) => (
+                    <div
+                      key={index}
+                      className={`flex items-end gap-2 ${msg.role === 'user' ? 'justify-end' : 'justify-start'}`}
+                    >
+                      {/* Avatar para Alex (solo a la izquierda) */}
+                      {msg.role === 'model' && (
+                        <div className="flex-shrink-0 w-8 h-8 rounded-full bg-gradient-to-br from-blue-500 to-blue-600 flex items-center justify-center shadow-sm">
+                          <Bot className="w-4 h-4 text-white" />
+                        </div>
+                      )}
+                      
+                      {/* Burbuja de Mensaje */}
+                      <div
+                        className={`max-w-[75%] shadow-sm ${
+                          msg.role === 'user'
+                            ? 'bg-blue-600 text-white rounded-2xl rounded-br-none px-5 py-3'
+                            : 'bg-gray-100 text-gray-800 rounded-2xl rounded-bl-none px-5 py-3'
+                        }`}
+                      >
+                        {/* Nombre del remitente */}
+                        <div className={`text-xs font-semibold mb-1.5 ${
+                          msg.role === 'user' ? 'text-blue-100' : 'text-gray-500'
+                        }`}>
+                          {msg.role === 'user' ? 'Tú' : 'Alex'}
+                        </div>
+                        
+                        {/* Contenido del mensaje */}
+                        {msg.role === 'model' ? (
+                          <div className="text-sm leading-relaxed text-gray-800
+                            [&>h1]:text-xl [&>h1]:font-bold [&>h1]:text-gray-900 [&>h1]:mt-3 [&>h1]:mb-2 [&>h1]:pb-1 [&>h1]:border-b [&>h1]:border-gray-300
+                            [&>h2]:text-lg [&>h2]:font-bold [&>h2]:text-gray-900 [&>h2]:mt-3 [&>h2]:mb-2 [&>h2]:pb-1 [&>h2]:border-b [&>h2]:border-gray-300
+                            [&>h3]:text-base [&>h3]:font-bold [&>h3]:text-gray-900 [&>h3]:mt-2 [&>h3]:mb-1
+                            [&>p]:my-2 [&>p]:leading-relaxed [&>p]:text-gray-800
+                            [&>strong]:text-gray-900 [&>strong]:font-semibold
+                            [&>em]:text-gray-700 [&>em]:italic
+                            [&>ul]:my-2 [&>ul]:pl-4 [&>ul]:list-disc [&>ul]:space-y-1
+                            [&>ol]:my-2 [&>ol]:pl-4 [&>ol]:list-decimal [&>ol]:space-y-1
+                            [&>li]:leading-relaxed [&>li]:text-gray-800
+                            [&>a]:text-blue-600 [&>a]:no-underline [&>a]:font-medium hover:[&>a]:underline
+                            [&>code]:text-blue-700 [&>code]:bg-blue-50 [&>code]:px-1.5 [&>code]:py-0.5 [&>code]:rounded [&>code]:text-xs [&>code]:font-mono
+                            [&>blockquote]:border-l-4 [&>blockquote]:border-blue-300 [&>blockquote]:pl-3 [&>blockquote]:italic [&>blockquote]:text-gray-600 [&>blockquote]:my-2
+                            [&>hr]:border-gray-300 [&>hr]:my-3">
+                            <ReactMarkdown>{msg.parts}</ReactMarkdown>
+                          </div>
+                        ) : (
+                          <div className="text-sm leading-relaxed whitespace-pre-wrap text-white">
+                            {msg.parts}
+                          </div>
+                        )}
+                      </div>
+                      
+                      {/* Avatar para Usuario (solo a la derecha) */}
+                      {msg.role === 'user' && (
+                        <div className="flex-shrink-0 w-8 h-8 rounded-full bg-gradient-to-br from-gray-400 to-gray-500 flex items-center justify-center shadow-sm">
+                          <User className="w-4 h-4 text-white" />
+                        </div>
+                      )}
+                    </div>
+                  ))}
+                  {chatLoading && (
+                    <div className="flex items-end gap-2 justify-start">
+                      <div className="flex-shrink-0 w-8 h-8 rounded-full bg-gradient-to-br from-blue-500 to-blue-600 flex items-center justify-center shadow-sm">
+                        <Bot className="w-4 h-4 text-white" />
+                      </div>
+                      <div className="bg-gray-100 text-gray-800 rounded-2xl rounded-bl-none px-5 py-3 shadow-sm">
+                        <Loader2 className="w-5 h-5 animate-spin text-blue-600" />
+                      </div>
+                    </div>
+                  )}
+                  {/* Elemento invisible para scroll automático */}
+                  <div ref={chatEndRef} />
+                </div>
+
+                {/* Input de Chat */}
+                <div className="flex gap-2">
+                  <input
+                    type="text"
+                    value={chatMessage}
+                    onChange={(e) => setChatMessage(e.target.value)}
+                    onKeyPress={(e) => e.key === 'Enter' && !chatLoading && handleChatSend()}
+                    placeholder="Pregunta algo sobre tu viaje... (ej: ¿Es seguro? ¿Qué más puedo hacer?)"
+                    disabled={chatLoading}
+                    className="flex-1 px-4 py-3 
+                               bg-white border border-slate-200 rounded-xl
+                               focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500
+                               disabled:bg-slate-50 disabled:cursor-not-allowed
+                               text-slate-800 placeholder-slate-400
+                               transition-all duration-300"
+                  />
+                  <button
+                    onClick={handleChatSend}
+                    disabled={chatLoading || !chatMessage.trim()}
+                    className="px-6 py-3 
+                               bg-blue-600 text-white rounded-xl
+                               hover:bg-blue-700 disabled:bg-slate-300 disabled:cursor-not-allowed
+                               transition-all duration-300
+                               flex items-center gap-2"
+                  >
+                    {chatLoading ? (
+                      <Loader2 className="w-5 h-5 animate-spin" />
+                    ) : (
+                      <Send className="w-5 h-5" />
+                    )}
+                  </button>
+                </div>
+              </div>
+
+            </div>
+          )}
+
+        </div>
+
+        {/* Modal de Favoritos */}
+        {showFavorites && (
+          <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 p-4">
+            <div className="bg-white rounded-2xl shadow-2xl max-w-2xl w-full max-h-[80vh] overflow-hidden flex flex-col">
+              <div className="flex items-center justify-between p-6 border-b border-slate-200">
+                <h2 className="text-2xl font-bold text-slate-800 flex items-center gap-2">
+                  <BookOpen className="w-6 h-6 text-blue-600" />
+                  Mis Viajes Guardados
+                </h2>
+                <button
+                  onClick={() => setShowFavorites(false)}
+                  className="p-2 hover:bg-slate-100 rounded-lg transition-colors"
+                >
+                  <X className="w-5 h-5 text-slate-600" />
+                </button>
+              </div>
+              
+              <div className="flex-1 overflow-y-auto p-6">
+                {favorites.length === 0 ? (
+                  <div className="text-center py-12 text-slate-500">
+                    <BookOpen className="w-16 h-16 mx-auto mb-4 text-slate-300" />
+                    <p className="text-lg">No tienes viajes guardados aún</p>
+                    <p className="text-sm mt-2">Planifica un viaje y guárdalo para accederlo después</p>
+                  </div>
+                ) : (
+                  <div className="space-y-4">
+                    {favorites.map((fav, index) => (
+                      <div
+                        key={index}
+                        className="border border-slate-200 rounded-xl p-4 hover:shadow-md transition-shadow"
+                      >
+                        <div className="flex items-start justify-between">
+                          <div className="flex-1">
+                            <h3 className="font-bold text-lg text-slate-800 mb-1">
+                              {fav.destination}
+                            </h3>
+                            <div className="text-sm text-slate-600 space-y-1">
+                              {fav.date && <p>📅 {fav.date}</p>}
+                              {fav.budget && <p>💰 {fav.budget}</p>}
+                              {fav.style && <p>🎯 {fav.style}</p>}
+                            </div>
+                            {fav.summary && (
+                              <p className="text-sm text-slate-500 mt-2 line-clamp-2">
+                                {fav.summary}
+                              </p>
+                            )}
+                          </div>
+                          <div className="flex gap-2 ml-4">
+                            <button
+                              onClick={() => handleLoadFavorite(fav)}
+                              className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors text-sm"
+                            >
+                              Cargar
+                            </button>
+                            <button
+                              onClick={() => handleDeleteFavorite(index)}
+                              className="px-4 py-2 bg-red-100 text-red-600 rounded-lg hover:bg-red-200 transition-colors text-sm"
+                            >
+                              Eliminar
+                            </button>
+                          </div>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Footer minimalista */}
+        <div className="mt-8 text-center">
+          <p className="text-sm text-slate-500 font-medium">
+            Powered by <span className="text-blue-600 font-semibold">Google Gemini AI</span> ✨
+          </p>
+        </div>
+      </div>
+
+      {/* Componente oculto para generar PDF estilo revista */}
+      {travelData && (
+        <ItineraryDocument travelData={travelData} formData={formData} />
+      )}
+    </div>
+  );
+};
+
+export default TravelPlanner;
