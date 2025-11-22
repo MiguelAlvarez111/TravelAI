@@ -15,6 +15,12 @@ const Login = ({ onSwitchToRegister }) => {
   const [loading, setLoading] = useState(false);
   const { login } = useAuth();
 
+  // Función para validar email con regex
+  const validateEmail = (email) => {
+    const regex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    return regex.test(email);
+  };
+
   const handleSubmit = async (e) => {
     e.preventDefault();
     setError('');
@@ -22,6 +28,13 @@ const Login = ({ onSwitchToRegister }) => {
 
     if (!email.trim() || !password.trim()) {
       setError('Por favor, completa todos los campos');
+      setLoading(false);
+      return;
+    }
+
+    // Validar formato de email con regex
+    if (!validateEmail(email.trim())) {
+      setError('Por favor, ingresa un email válido');
       setLoading(false);
       return;
     }

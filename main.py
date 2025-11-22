@@ -73,13 +73,18 @@ def increment_plan_counter(destination: str):
 # Cargar stats al iniciar
 load_stats()
 
-# Validar API KEY al iniciar
+# Validar API KEY al iniciar - Validación estricta (falla si no existe)
 GEMINI_API_KEY = os.getenv("GEMINI_API_KEY")
-if not GEMINI_API_KEY:
-    logger.warning(
-        "⚠️  ADVERTENCIA: GEMINI_API_KEY no encontrada en variables de entorno. "
-        "El servidor puede fallar al procesar solicitudes. "
-        "Asegúrate de crear un archivo .env con tu API key."
+if not GEMINI_API_KEY or not GEMINI_API_KEY.strip():
+    logger.error(
+        "❌ ERROR CRÍTICO: GEMINI_API_KEY no encontrada en variables de entorno. "
+        "El servidor no puede iniciar sin esta variable. "
+        "Asegúrate de crear un archivo .env con tu API key de Google Gemini."
+    )
+    raise ValueError(
+        "GEMINI_API_KEY es requerida para iniciar el servidor. "
+        "Configúrala en variables de entorno antes de iniciar. "
+        "Crea un archivo .env en la raíz del proyecto con: GEMINI_API_KEY=tu_api_key_aqui"
     )
 else:
     logger.info("✅ GEMINI_API_KEY encontrada y validada")

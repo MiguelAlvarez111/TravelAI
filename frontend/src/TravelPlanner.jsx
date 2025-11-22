@@ -17,6 +17,7 @@ import { Plane, Loader2, Send, AlertCircle, Cloud, Clock, Thermometer, Heart, Do
 import jsPDF from 'jspdf';
 import html2canvas from 'html2canvas';
 import { Toaster, toast } from 'sonner';
+import DOMPurify from 'dompurify';
 import ItineraryDocument from './ItineraryDocument';
 import { useAuth } from './contexts/AuthContext';
 import { database } from './firebase/config';
@@ -227,6 +228,9 @@ const TravelPlanner = () => {
       // Detectar moneda local del usuario
       const userCurrency = Intl.NumberFormat().resolvedOptions().currency || 'USD';
       
+      // Sanitizar el destino antes de enviarlo al backend (protección XSS)
+      const cleanDestination = DOMPurify.sanitize(formData.destination.trim());
+      
       // Llamar al backend FastAPI
       const apiResponse = await fetch(`${API_URL}/api/plan`, {
         method: 'POST',
@@ -234,13 +238,23 @@ const TravelPlanner = () => {
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({
-          destination: formData.destination.trim(),
+          destination: cleanDestination,
           date: formData.date || '',
           budget: formData.budget || '',
           style: formData.style || '',
           user_currency: userCurrency
         }),
       });
+
+      // Manejo específico de error 429 (Rate Limit)
+      if (apiResponse.status === 429) {
+        const errorData = await apiResponse.json().catch(() => ({ detail: 'Has alcanzado el límite de consultas. Por favor, espera un minuto.' }));
+        const errorMessage = errorData.detail || 'Has alcanzado el límite de consultas. Por favor, espera un minuto.';
+        toast.error(errorMessage);
+        setError(errorMessage);
+        setLoading(false);
+        return;
+      }
 
       if (!apiResponse.ok) {
         const errorData = await apiResponse.json();
