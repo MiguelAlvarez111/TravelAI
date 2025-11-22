@@ -13,10 +13,13 @@
 
 import React, { useState, useEffect, useRef } from 'react';
 import ReactMarkdown from 'react-markdown';
-import { Plane, Loader2, Send, AlertCircle, Cloud, Clock, Thermometer, Heart, Download, BookOpen, X, MessageCircle, User, Bot } from 'lucide-react';
+import { Plane, Loader2, Send, AlertCircle, Cloud, Clock, Thermometer, Heart, Download, BookOpen, X, MessageCircle, User, Bot, LogOut } from 'lucide-react';
 import jsPDF from 'jspdf';
 import html2canvas from 'html2canvas';
 import ItineraryDocument from './ItineraryDocument';
+import { useAuth } from './contexts/AuthContext';
+import { database } from './firebase/config';
+import { ref, push } from 'firebase/database';
 
 // Constante para la URL de la API - Lee de variables de entorno o usa fallback
 // NOTA: Las variables VITE_* se inyectan en tiempo de BUILD, no en runtime
@@ -27,6 +30,8 @@ const API_URL = import.meta.env.VITE_API_URL ||
                   : 'http://localhost:8000');  // Fallback para desarrollo local
 
 const TravelPlanner = () => {
+  const { user, logout } = useAuth();
+  
   // Estado único para el formulario estructurado
   const [formData, setFormData] = useState({
     destination: '',
@@ -140,6 +145,42 @@ const TravelPlanner = () => {
   };
 
   /**
+   * Función para guardar el historial del viaje en Firebase Realtime Database
+   * @param {Object} travelData - Datos del viaje generado
+   */
+  const saveHistoryToFirebase = async (travelData) => {
+    if (!user) return;
+
+    try {
+      const historyRef = ref(database, `users/${user.uid}/history`);
+      const historyEntry = {
+        destination: formData.destination,
+        date: formData.date || null,
+        timestamp: new Date().toISOString(),
+        summary: travelData.gemini_response.substring(0, 500) + (travelData.gemini_response.length > 500 ? '...' : ''),
+        budget: formData.budget || null,
+        style: formData.style || null
+      };
+
+      await push(historyRef, historyEntry);
+      console.log('Historial guardado en Firebase');
+    } catch (error) {
+      console.error('Error al guardar historial en Firebase:', error);
+      // No mostramos error al usuario, es una operación en segundo plano
+    }
+  };
+
+  /**
+   * Función para cerrar sesión
+   */
+  const handleLogout = async () => {
+    const result = await logout();
+    if (!result.success) {
+      setError('Error al cerrar sesión');
+    }
+  };
+
+  /**
    * Función que se ejecuta cuando el usuario hace clic en "Planificar Aventura"
    * Conecta con el backend FastAPI usando API_URL configurada desde variables de entorno
    */
@@ -190,6 +231,9 @@ const TravelPlanner = () => {
           parts: data.gemini_response
         }
       ]);
+
+      // Guardar historial en Firebase Realtime Database
+      await saveHistoryToFirebase(data);
       
     } catch (err) {
       let errorMessage = 'Ocurrió un error consultando a la IA';
@@ -520,15 +564,33 @@ const TravelPlanner = () => {
           
           {/* Header con título animado y botones Pro */}
           <div className="text-center mb-10">
-            <div className="flex items-center justify-center gap-3 mb-3">
-              <Plane className="w-9 h-9 text-blue-600 animate-pulse" />
-              <h1 className="text-5xl font-bold text-slate-800 tracking-tight">
-                ViajeIA
-              </h1>
+            <div className="flex items-center justify-between mb-3">
+              <div className="flex-1"></div>
+              <div className="flex items-center justify-center gap-3 flex-1">
+                <Plane className="w-9 h-9 text-blue-600 animate-pulse" />
+                <h1 className="text-5xl font-bold text-slate-800 tracking-tight">
+                  ViajeIA
+                </h1>
+              </div>
+              <div className="flex-1 flex justify-end">
+                <button
+                  onClick={handleLogout}
+                  className="p-2 rounded-lg bg-slate-100 text-slate-600 hover:bg-slate-200 transition-all duration-300 flex items-center gap-2"
+                  title="Cerrar Sesión"
+                >
+                  <LogOut className="w-5 h-5" />
+                  <span className="text-sm font-medium hidden sm:inline">Cerrar Sesión</span>
+                </button>
+              </div>
             </div>
             <p className="text-slate-600 text-lg mt-3 font-medium">
               Tu asistente inteligente para planificar aventuras inolvidables
             </p>
+            {user && (
+              <p className="text-slate-500 text-sm mt-2">
+                Hola, {user.displayName || user.email} 👋
+              </p>
+            )}
             
             {/* Botones Pro: Favoritos y Mis Viajes */}
             <div className="flex items-center justify-center gap-3 mt-4">
