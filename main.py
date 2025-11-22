@@ -3,6 +3,7 @@ FastAPI Backend para ViajeIA - Integración con Google Gemini, OpenWeatherMap y 
 """
 import os
 import logging
+import traceback
 import asyncio
 import json
 from typing import Optional, List, Dict
@@ -266,29 +267,66 @@ async def create_travel_plan(request: TravelRequest):
         
         destination = request.destination.strip()
         
-        # Obtener servicios
-        gemini_service = get_gemini_service()
-        weather_service = get_weather_service()
-        unsplash_service = get_unsplash_service()
+        # Obtener servicios con manejo de errores
+        try:
+            gemini_service = get_gemini_service()
+            logger.info("✅ Servicio Gemini inicializado")
+        except Exception as e:
+            logger.error(f"❌ Error al inicializar Gemini Service: {e}")
+            logger.error(f"📋 Traceback completo:\n{traceback.format_exc()}")
+            raise HTTPException(
+                status_code=500,
+                detail="Error de configuración del servidor. Por favor, contacta al administrador."
+            )
+        
+        try:
+            weather_service = get_weather_service()
+            logger.info("✅ Servicio Weather inicializado")
+        except Exception as e:
+            logger.error(f"❌ Error al inicializar Weather Service: {e}")
+            logger.error(f"📋 Traceback completo:\n{traceback.format_exc()}")
+            weather_service = None  # Continuar sin weather
+        
+        try:
+            unsplash_service = get_unsplash_service()
+            logger.info("✅ Servicio Unsplash inicializado")
+        except Exception as e:
+            logger.error(f"❌ Error al inicializar Unsplash Service: {e}")
+            logger.error(f"📋 Traceback completo:\n{traceback.format_exc()}")
+            unsplash_service = None  # Continuar sin imágenes
         
         # Ejecutar llamadas en paralelo para mejor rendimiento
         logger.info("🔄 Consultando Gemini, Weather y Unsplash en paralelo...")
         
         # Llamar a Gemini (síncrono pero lo ejecutamos en un executor para no bloquear)
+        # Verificar que los argumentos sean correctos antes de enviar
+        logger.info(f"📤 Enviando a Gemini: destination='{destination}', date='{request.date}', budget='{request.budget}', style='{request.style}'")
+        
         loop = asyncio.get_event_loop()
         gemini_task = loop.run_in_executor(
             None,
             lambda: gemini_service.generate_travel_recommendation(
                 destination=destination,
-                date=request.date,
-                budget=request.budget,
-                style=request.style
+                date=request.date or "",
+                budget=request.budget or "",
+                style=request.style or ""
             )
         )
         
-        # Llamadas asíncronas a Weather y Unsplash
-        weather_task = weather_service.get_weather(destination)
-        images_task = unsplash_service.get_destination_images(destination, count=3)
+        # Llamadas asíncronas a Weather y Unsplash (con fallback si los servicios no están disponibles)
+        if weather_service:
+            weather_task = weather_service.get_weather(destination)
+        else:
+            async def empty_weather():
+                return None
+            weather_task = empty_weather()
+        
+        if unsplash_service:
+            images_task = unsplash_service.get_destination_images(destination, count=3)
+        else:
+            async def empty_images():
+                return []
+            images_task = empty_images()
         
         # Esperar todas las respuestas en paralelo
         gemini_response, weather_data, images = await asyncio.gather(
@@ -300,40 +338,66 @@ async def create_travel_plan(request: TravelRequest):
         
         # Manejar errores individuales sin fallar toda la respuesta
         if isinstance(gemini_response, Exception):
-            logger.error(f"❌ Error en Gemini: {gemini_response}")
+            error_type = type(gemini_response).__name__
+            error_message = str(gemini_response)
+            logger.error(f"❌ Error en Gemini: {error_type}: {error_message}")
+            # Obtener traceback de la excepción capturada
+            try:
+                tb_lines = traceback.format_exception(type(gemini_response), gemini_response, gemini_response.__traceback__)
+                logger.error(f"📋 Traceback completo del error de Gemini:\n{''.join(tb_lines)}")
+            except Exception:
+                logger.error(f"📋 No se pudo obtener traceback completo. Error: {error_message}")
+            logger.error(f"🔍 Tipo de excepción: {error_type}")
+            logger.error(f"🔍 Argumentos enviados a Gemini: destination='{destination}', date='{request.date}', budget='{request.budget}', style='{request.style}'")
             raise HTTPException(
                 status_code=500,
                 detail="Ocurrió un error consultando a la IA"
             )
         
+        # Fallo gracioso: Si weather o images fallan, continuar con valores por defecto
         if isinstance(weather_data, Exception):
-            logger.warning(f"⚠️  Error al obtener clima: {weather_data}")
+            error_type = type(weather_data).__name__
+            error_message = str(weather_data)
+            logger.warning(f"⚠️  Error al obtener clima (continuando sin clima): {error_type}: {error_message}")
+            try:
+                tb_lines = traceback.format_exception(type(weather_data), weather_data, weather_data.__traceback__)
+                logger.warning(f"📋 Traceback del error de Weather:\n{''.join(tb_lines)}")
+            except Exception:
+                logger.warning(f"📋 No se pudo obtener traceback completo. Error: {error_message}")
             weather_data = None
         
         if isinstance(images, Exception):
-            logger.warning(f"⚠️  Error al obtener imágenes: {images}")
+            error_type = type(images).__name__
+            error_message = str(images)
+            logger.warning(f"⚠️  Error al obtener imágenes (continuando sin imágenes): {error_type}: {error_message}")
+            try:
+                tb_lines = traceback.format_exception(type(images), images, images.__traceback__)
+                logger.warning(f"📋 Traceback del error de Unsplash:\n{''.join(tb_lines)}")
+            except Exception:
+                logger.warning(f"📋 No se pudo obtener traceback completo. Error: {error_message}")
             images = []
         
         # Construir objeto info con datos adicionales
         info = {}
-        if weather_data:
+        if weather_data and isinstance(weather_data, dict):
             info["local_time"] = weather_data.get("local_time", "N/A")
             # Opcional: agregar currency si se implementa en el futuro
         
         logger.info("✅ Recomendación generada con datos en tiempo real")
+        logger.info(f"📊 Resumen: Gemini={'✅' if gemini_response else '❌'}, Weather={'✅' if weather_data else '❌'}, Images={'✅' if images else '❌'}")
         
         # Incrementar contador de métricas
         increment_plan_counter(destination)
         
-        # Devolver respuesta con nueva estructura
+        # Devolver respuesta con nueva estructura (siempre incluir respuesta de Gemini)
         return {
             "gemini_response": gemini_response,
             "weather": {
-                "temp": weather_data.get("temp") if weather_data else None,
-                "condition": weather_data.get("condition") if weather_data else None,
-                "feels_like": weather_data.get("feels_like") if weather_data else None
+                "temp": weather_data.get("temp") if weather_data and isinstance(weather_data, dict) else None,
+                "condition": weather_data.get("condition") if weather_data and isinstance(weather_data, dict) else None,
+                "feels_like": weather_data.get("feels_like") if weather_data and isinstance(weather_data, dict) else None
             } if weather_data else None,
-            "images": images,
+            "images": images if isinstance(images, list) else [],
             "info": info if info else None
         }
         
@@ -344,15 +408,18 @@ async def create_travel_plan(request: TravelRequest):
     except ValueError as e:
         # Error de configuración (API key faltante, etc.)
         logger.error(f"❌ Error de configuración: {e}")
+        logger.error(f"📋 Traceback completo:\n{traceback.format_exc()}")
         raise HTTPException(
             status_code=500,
             detail="Error de configuración del servidor. Por favor, contacta al administrador."
         )
     
     except Exception as e:
-        # Bloque try/except simple: Si algo falla, devuelve un mensaje amigable
+        # Bloque try/except con logging detallado
         error_message = str(e)
-        logger.error(f"❌ Error al generar recomendación: {error_message}")
+        error_type = type(e).__name__
+        logger.error(f"❌ Error inesperado al generar recomendación: {error_type}: {error_message}")
+        logger.error(f"📋 Traceback completo:\n{traceback.format_exc()}")
         
         # Mensaje genérico para errores
         raise HTTPException(

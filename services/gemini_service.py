@@ -3,6 +3,7 @@ Servicio de integración con Google Gemini para recomendaciones de viaje.
 """
 import os
 import logging
+import traceback
 from typing import Optional, List, Dict
 import google.generativeai as genai
 from dotenv import load_dotenv
@@ -101,6 +102,17 @@ class GeminiService:
             Exception: Si hay un error al comunicarse con Gemini
         """
         try:
+            # Validar argumentos antes de construir el prompt
+            if not destination or not destination.strip():
+                raise ValueError("El destino no puede estar vacío")
+            
+            destination = destination.strip()
+            date = date.strip() if date else ""
+            budget = budget.strip() if budget else ""
+            style = style.strip() if style else ""
+            
+            logger.info(f"📤 Generando recomendación de viaje - Destino: '{destination}', Fecha: '{date}', Presupuesto: '{budget}', Estilo: '{style}'")
+            
             # Construir el prompt combinando los 4 campos en una frase coherente
             prompt_parts = [f"Planifica un viaje a {destination}"]
             
@@ -122,18 +134,33 @@ class GeminiService:
             
             # Generar respuesta usando Gemini
             # Esta es la llamada a la API de Google Gemini que envía la pregunta del usuario
-            logger.info(f"Enviando solicitud a Gemini: {user_request[:100]}...")
+            logger.info(f"🔄 Enviando solicitud a Gemini: {user_request[:100]}...")
+            logger.debug(f"📝 Longitud del prompt completo: {len(full_prompt)} caracteres")
+            
             response = self.model.generate_content(full_prompt)
             
             # Extraer el texto de la respuesta
+            if not response or not hasattr(response, 'text') or not response.text:
+                raise ValueError("La respuesta de Gemini está vacía o no tiene texto")
+            
             recommendation = response.text
             
-            logger.info("✅ Recomendación generada exitosamente por Alex")
+            logger.info(f"✅ Recomendación generada exitosamente por Alex ({len(recommendation)} caracteres)")
             return recommendation
             
+        except ValueError as e:
+            # Errores de validación o configuración
+            logger.error(f"❌ Error de validación en Gemini: {e}")
+            logger.error(f"📋 Traceback completo:\n{traceback.format_exc()}")
+            raise Exception(f"Error de configuración: {e}")
+            
         except Exception as e:
-            # Bloque try/except simple: Si Gemini falla, devuelve un mensaje amigable
-            logger.error(f"❌ Error al consultar Gemini: {e}")
+            # Bloque try/except con logging detallado
+            error_type = type(e).__name__
+            error_message = str(e)
+            logger.error(f"❌ Error al consultar Gemini: {error_type}: {error_message}")
+            logger.error(f"📋 Traceback completo:\n{traceback.format_exc()}")
+            logger.error(f"🔍 Argumentos recibidos: destination='{destination}', date='{date}', budget='{budget}', style='{style}'")
             raise Exception("Ocurrió un error consultando a la IA")
     
     def generate_chat_response(
@@ -219,8 +246,19 @@ class GeminiService:
             logger.info("✅ Respuesta generada exitosamente por Alex")
             return recommendation
             
+        except ValueError as e:
+            # Errores de validación o configuración
+            logger.error(f"❌ Error de validación en Gemini (chat): {e}")
+            logger.error(f"📋 Traceback completo:\n{traceback.format_exc()}")
+            raise Exception(f"Error de configuración: {e}")
+            
         except Exception as e:
-            logger.error(f"❌ Error al consultar Gemini (chat): {e}")
+            # Bloque try/except con logging detallado
+            error_type = type(e).__name__
+            error_message = str(e)
+            logger.error(f"❌ Error al consultar Gemini (chat): {error_type}: {error_message}")
+            logger.error(f"📋 Traceback completo:\n{traceback.format_exc()}")
+            logger.error(f"🔍 Argumentos recibidos: destination='{destination}', message='{message[:50]}...', history_length={len(history)}")
             raise Exception("Ocurrió un error consultando a la IA")
 
 

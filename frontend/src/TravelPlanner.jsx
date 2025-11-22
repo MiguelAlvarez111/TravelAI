@@ -561,313 +561,319 @@ const TravelPlanner = () => {
     localStorage.setItem('viajeia_favorites', JSON.stringify(updatedFavorites));
   };
 
+  // Función helper para obtener iniciales del usuario
+  const getUserInitials = () => {
+    if (user?.displayName) {
+      return user.displayName.split(' ').map(n => n[0]).join('').toUpperCase().slice(0, 2);
+    }
+    if (user?.email) {
+      return user.email[0].toUpperCase();
+    }
+    return 'U';
+  };
+
   return (
-    <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-50 flex items-center justify-center py-12 px-4 sm:px-6 lg:px-8">
-      <div className="max-w-3xl w-full">
-        {/* Glass Card Principal */}
-        <div className="bg-white/80 backdrop-blur-xl rounded-2xl shadow-xl border border-white/20 p-8 sm:p-10 md:p-12">
-          
-          {/* Header con título animado y botones Pro */}
-          <div className="text-center mb-10">
-            <div className="flex items-center justify-between mb-3">
-              <div className="flex-1"></div>
-              <div className="flex items-center justify-center gap-3 flex-1">
-                <Plane className="w-9 h-9 text-blue-600 animate-pulse" />
-                <h1 className="text-5xl font-bold text-slate-800 tracking-tight">
-                  ViajeIA
-                </h1>
-              </div>
-              <div className="flex-1 flex justify-end">
-                <button
-                  onClick={handleLogout}
-                  className="p-2 rounded-lg bg-slate-100 text-slate-600 hover:bg-slate-200 transition-all duration-300 flex items-center gap-2"
-                  title="Cerrar Sesión"
-                >
-                  <LogOut className="w-5 h-5" />
-                  <span className="text-sm font-medium hidden sm:inline">Cerrar Sesión</span>
-                </button>
-              </div>
+    <div className="min-h-screen bg-slate-50 font-sans">
+      {/* Contenedor Principal Centrado */}
+      <div className="max-w-5xl mx-auto px-4 py-12">
+        
+        {/* Header & Navegación: Flexbox limpio con gradiente y avatar */}
+        <header className="mb-10">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-3">
+              <Plane className="w-7 h-7 text-blue-600" />
+              <h1 className="text-4xl font-extrabold tracking-tight bg-clip-text text-transparent bg-gradient-to-r from-blue-600 to-indigo-600">
+                ViajeIA
+              </h1>
             </div>
-            <p className="text-slate-600 text-lg mt-3 font-medium">
-              Tu asistente inteligente para planificar aventuras inolvidables
-            </p>
-            {user && (
-              <p className="text-slate-500 text-sm mt-2">
-                Hola, {user.displayName || user.email} 👋
-              </p>
-            )}
-            
-            {/* Botones Pro: Favoritos y Mis Viajes */}
-            <div className="flex items-center justify-center gap-3 mt-4">
-              {travelData && (
-                <button
-                  onClick={handleToggleFavorite}
-                  className={`p-2 rounded-lg transition-all duration-300 ${
-                    isFavorited
-                      ? 'bg-red-100 text-red-600 hover:bg-red-200'
-                      : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
-                  }`}
-                  title={isFavorited ? 'Quitar de favoritos' : 'Agregar a favoritos'}
-                >
-                  <Heart className={`w-5 h-5 ${isFavorited ? 'fill-current' : ''}`} />
-                </button>
+            <div className="flex items-center gap-3">
+              {user && (
+                <div className="flex items-center gap-2">
+                  <div className="w-9 h-9 rounded-full bg-gradient-to-br from-blue-500 to-indigo-600 flex items-center justify-center text-white text-sm font-semibold shadow-md">
+                    {getUserInitials()}
+                  </div>
+                  <span className="text-sm text-slate-600 hidden sm:inline">
+                    {user.displayName || user.email?.split('@')[0]}
+                  </span>
+                </div>
               )}
               <button
-                onClick={() => setShowFavorites(true)}
-                className="p-2 rounded-lg bg-slate-100 text-slate-600 hover:bg-slate-200 transition-all duration-300"
-                title="Mis Viajes Guardados"
+                onClick={handleLogout}
+                className="p-2 rounded-lg text-slate-500 hover:bg-slate-100 hover:text-slate-700 transition-all duration-200"
+                title="Cerrar Sesión"
               >
-                <BookOpen className="w-5 h-5" />
+                <LogOut className="w-5 h-5" />
               </button>
-              {travelData && (
-                <button
-                  onClick={handleExportPDF}
-                  className="p-2 rounded-lg bg-blue-100 text-blue-600 hover:bg-blue-200 transition-all duration-300"
-                  title="Descargar PDF"
-                >
-                  <Download className="w-5 h-5" />
-                </button>
-              )}
             </div>
           </div>
+        </header>
 
-          {/* Formulario estructurado estilo Airbnb con Grid Layout */}
-          <div className="mb-6">
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-              
-              {/* Campo: Destino */}
-              <div className="md:col-span-2">
-                <label htmlFor="destination" className="block text-sm font-semibold text-slate-700 mb-3">
-                  Destino
-                </label>
-                <input
-                  type="text"
-                  id="destination"
-                  name="destination"
-                  value={formData.destination}
-                  onChange={handleInputChange}
-                  placeholder="¿París, Bali, Nueva York?"
-                  disabled={loading}
-                  className="w-full px-5 py-4 
-                             bg-white border border-slate-200 rounded-xl
-                             focus:outline-none focus:ring-4 focus:ring-blue-500/20 focus:border-blue-500
-                             disabled:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-60
-                             text-slate-800 placeholder-slate-400 placeholder:font-normal
-                             transition-all duration-300
-                             shadow-sm hover:shadow-md focus:shadow-lg"
-                />
-              </div>
-
-              {/* Campo: Fechas */}
-              <div>
-                <label htmlFor="date" className="block text-sm font-semibold text-slate-700 mb-3">
-                  ¿Cuándo viajas?
-                </label>
-                <input
-                  type="date"
-                  id="date"
-                  name="date"
-                  value={formData.date}
-                  onChange={handleInputChange}
-                  disabled={loading}
-                  min={new Date().toISOString().split('T')[0]}
-                  className="w-full px-5 py-4 
-                             bg-white border border-slate-200 rounded-xl
-                             focus:outline-none focus:ring-4 focus:ring-blue-500/20 focus:border-blue-500
-                             disabled:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-60
-                             text-slate-800
-                             transition-all duration-300
-                             shadow-sm hover:shadow-md focus:shadow-lg"
-                />
-              </div>
-
-              {/* Campo: Presupuesto */}
-              <div>
-                <label htmlFor="budget" className="block text-sm font-semibold text-slate-700 mb-3">
-                  Presupuesto
-                </label>
-                <select
-                  id="budget"
-                  name="budget"
-                  value={formData.budget}
-                  onChange={handleInputChange}
-                  disabled={loading}
-                  className="w-full px-5 py-4 
-                             bg-white border border-slate-200 rounded-xl
-                             focus:outline-none focus:ring-4 focus:ring-blue-500/20 focus:border-blue-500
-                             disabled:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-60
-                             text-slate-800
-                             transition-all duration-300
-                             shadow-sm hover:shadow-md focus:shadow-lg"
-                >
-                  <option value="">Selecciona tu presupuesto</option>
-                  <option value="Mochilero 🎒">Mochilero 🎒</option>
-                  <option value="Moderado ⚖️">Moderado ⚖️</option>
-                  <option value="Lujo ✨">Lujo ✨</option>
-                </select>
-              </div>
-
-              {/* Campo: Estilo de Viaje */}
-              <div>
-                <label htmlFor="style" className="block text-sm font-semibold text-slate-700 mb-3">
-                  Estilo de Viaje
-                </label>
-                <select
-                  id="style"
-                  name="style"
-                  value={formData.style}
-                  onChange={handleInputChange}
-                  disabled={loading}
-                  className="w-full px-5 py-4 
-                             bg-white border border-slate-200 rounded-xl
-                             focus:outline-none focus:ring-4 focus:ring-blue-500/20 focus:border-blue-500
-                             disabled:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-60
-                             text-slate-800
-                             transition-all duration-300
-                             shadow-sm hover:shadow-md focus:shadow-lg"
-                >
-                  <option value="">Selecciona tu estilo</option>
-                  <option value="Aventura 🧗">Aventura 🧗</option>
-                  <option value="Relax 🏖️">Relax 🏖️</option>
-                  <option value="Cultura 🏛️">Cultura 🏛️</option>
-                  <option value="Gastronomía 🌮">Gastronomía 🌮</option>
-                </select>
-              </div>
-
+        {/* Tarjeta de Entrada (Hero Section): Glassmorphism Clean */}
+        <section className="bg-white rounded-3xl shadow-xl border border-slate-100 p-8 mb-8">
+          <h2 className="text-2xl font-extrabold tracking-tight text-slate-900 mb-6">Planifica tu Aventura</h2>
+          
+          {/* Formulario con Grid */}
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
+            
+            {/* Campo: Destino (Full Width) */}
+            <div className="md:col-span-2">
+              <label htmlFor="destination" className="block text-sm font-semibold text-slate-700 mb-2">
+                Destino
+              </label>
+              <input
+                type="text"
+                id="destination"
+                name="destination"
+                value={formData.destination}
+                onChange={handleInputChange}
+                placeholder="¿París, Bali, Nueva York?"
+                disabled={loading}
+                className="w-full px-4 py-3 
+                           bg-white border border-slate-200 rounded-xl
+                           focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500
+                           disabled:bg-slate-50 disabled:cursor-not-allowed
+                           text-slate-800 placeholder-slate-400
+                           transition-all duration-200"
+              />
             </div>
+
+            {/* Campo: Fechas */}
+            <div>
+              <label htmlFor="date" className="block text-sm font-semibold text-slate-700 mb-2">
+                ¿Cuándo viajas?
+              </label>
+              <input
+                type="date"
+                id="date"
+                name="date"
+                value={formData.date}
+                onChange={handleInputChange}
+                disabled={loading}
+                min={new Date().toISOString().split('T')[0]}
+                className="w-full px-4 py-3 
+                           bg-white border border-slate-200 rounded-xl
+                           focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500
+                           disabled:bg-slate-50 disabled:cursor-not-allowed
+                           text-slate-800
+                           transition-all duration-200"
+              />
+            </div>
+
+            {/* Campo: Presupuesto */}
+            <div>
+              <label htmlFor="budget" className="block text-sm font-semibold text-slate-700 mb-2">
+                Presupuesto
+              </label>
+              <select
+                id="budget"
+                name="budget"
+                value={formData.budget}
+                onChange={handleInputChange}
+                disabled={loading}
+                className="w-full px-4 py-3 
+                           bg-white border border-slate-200 rounded-xl
+                           focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500
+                           disabled:bg-slate-50 disabled:cursor-not-allowed
+                           text-slate-800
+                           transition-all duration-200"
+              >
+                <option value="">Selecciona tu presupuesto</option>
+                <option value="Mochilero 🎒">Mochilero 🎒</option>
+                <option value="Moderado ⚖️">Moderado ⚖️</option>
+                <option value="Lujo ✨">Lujo ✨</option>
+              </select>
+            </div>
+
+            {/* Campo: Estilo de Viaje */}
+            <div>
+              <label htmlFor="style" className="block text-sm font-semibold text-slate-700 mb-2">
+                Estilo de Viaje
+              </label>
+              <select
+                id="style"
+                name="style"
+                value={formData.style}
+                onChange={handleInputChange}
+                disabled={loading}
+                className="w-full px-4 py-3 
+                           bg-white border border-slate-200 rounded-xl
+                           focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500
+                           disabled:bg-slate-50 disabled:cursor-not-allowed
+                           text-slate-800
+                           transition-all duration-200"
+              >
+                <option value="">Selecciona tu estilo</option>
+                <option value="Aventura 🧗">Aventura 🧗</option>
+                <option value="Relax 🏖️">Relax 🏖️</option>
+                <option value="Cultura 🏛️">Cultura 🏛️</option>
+                <option value="Gastronomía 🌮">Gastronomía 🌮</option>
+              </select>
+            </div>
+
           </div>
 
-          {/* Botón con gradiente elegante */}
-          <div className="mb-6">
-            <button
-              onClick={handlePlanificar}
-              disabled={loading || !formData.destination.trim()}
-              className="w-full flex items-center justify-center gap-3
-                         bg-gradient-to-r from-blue-600 to-blue-500 
-                         hover:from-blue-700 hover:to-blue-600
-                         disabled:from-slate-300 disabled:to-slate-300
-                         text-white font-semibold py-4 px-6 rounded-xl
-                         shadow-lg hover:shadow-xl disabled:shadow-none
-                         transition-all duration-300
-                         disabled:cursor-not-allowed
-                         transform hover:scale-[1.02] active:scale-[0.98] disabled:transform-none
-                         relative overflow-hidden group"
-            >
-              <span className="relative z-10 flex items-center gap-3">
-                {loading ? (
-                  <>
-                    <Loader2 className="w-5 h-5 animate-spin" />
-                    <span>Consultando satélites...</span>
-                  </>
-                ) : (
-                  <>
-                    <Send className="w-5 h-5 group-hover:translate-x-1 transition-transform duration-300" />
-                    <span>Planificar Aventura</span>
-                  </>
+          {/* Botón Principal: Grande, gradiente azul vibrante, sombra de color */}
+          <button
+            onClick={handlePlanificar}
+            disabled={loading || !formData.destination.trim()}
+            className="w-full md:w-auto md:min-w-[280px] flex items-center justify-center gap-3
+                       bg-gradient-to-r from-blue-600 to-indigo-600 
+                       hover:from-blue-700 hover:to-indigo-700
+                       disabled:from-slate-300 disabled:to-slate-300
+                       text-white font-semibold py-4 px-8 rounded-xl
+                       shadow-lg shadow-blue-500/30 hover:shadow-xl hover:shadow-blue-500/40
+                       transition-all duration-300
+                       disabled:cursor-not-allowed
+                       transform hover:scale-[1.01] active:scale-95 disabled:transform-none"
+          >
+            {loading ? (
+              <>
+                <Loader2 className="w-5 h-5 animate-spin" />
+                <span>Consultando satélites...</span>
+              </>
+            ) : (
+              <>
+                <Send className="w-5 h-5" />
+                <span>Planificar Aventura</span>
+              </>
+            )}
+          </button>
+        </section>
+
+        {/* Mensaje de Error */}
+        {error && (
+          <div className="mb-8 p-5 bg-red-50 border-l-4 border-red-500 rounded-xl
+                          flex items-start gap-3 shadow-md">
+            <AlertCircle className="w-6 h-6 text-red-600 flex-shrink-0 mt-0.5" />
+            <div className="flex-1">
+              <p className="text-red-800 font-semibold mb-1">Error de conexión</p>
+              <p className="text-red-600 text-sm leading-relaxed">{error}</p>
+            </div>
+          </div>
+        )}
+
+        {/* Resultados (El Plan): Tarjeta separada con animación */}
+        {travelData && (
+          <section className="animate-fade-in-up bg-white rounded-3xl shadow-xl border border-slate-100 p-8 space-y-8">
+            
+            {/* Header del Plan con Botones de Acción */}
+            <div className="flex items-center justify-between flex-wrap gap-4">
+              <h2 className="text-2xl font-extrabold tracking-tight text-slate-900">Tu Plan</h2>
+              <div className="flex items-center gap-2">
+                {travelData && (
+                  <button
+                    onClick={handleToggleFavorite}
+                    className={`p-2.5 rounded-xl transition-all duration-200 border ${
+                      isFavorited
+                        ? 'bg-red-50 text-red-600 border-red-200 hover:bg-red-100'
+                        : 'bg-white text-slate-600 border-slate-200 hover:bg-slate-50'
+                    }`}
+                    title={isFavorited ? 'Quitar de favoritos' : 'Agregar a favoritos'}
+                  >
+                    <Heart className={`w-5 h-5 ${isFavorited ? 'fill-current' : ''}`} />
+                  </button>
                 )}
-              </span>
-              <div className="absolute inset-0 bg-white/20 opacity-0 group-hover:opacity-100 transition-opacity duration-300"></div>
-            </button>
-          </div>
-
-          {/* Mensaje de Error elegante */}
-          {error && (
-            <div className="mb-6 p-5 bg-red-50/80 backdrop-blur-sm border-l-4 border-red-500 rounded-xl
-                          flex items-start gap-3 animate-in fade-in duration-300 shadow-md">
-              <AlertCircle className="w-6 h-6 text-red-600 flex-shrink-0 mt-0.5" />
-              <div className="flex-1">
-                <p className="text-red-800 font-semibold mb-1">Error de conexión</p>
-                <p className="text-red-600 text-sm leading-relaxed">{error}</p>
+                <button
+                  onClick={() => setShowFavorites(true)}
+                  className="p-2.5 rounded-xl bg-white text-slate-600 border border-slate-200 hover:bg-slate-50 transition-all duration-200"
+                  title="Mis Viajes Guardados"
+                >
+                  <BookOpen className="w-5 h-5" />
+                </button>
+                {travelData && (
+                  <button
+                    onClick={handleExportPDF}
+                    className="p-2.5 rounded-xl bg-white text-blue-600 border border-blue-200 hover:bg-blue-50 transition-all duration-200"
+                    title="Descargar PDF"
+                  >
+                    <Download className="w-5 h-5" />
+                  </button>
+                )}
               </div>
             </div>
-          )}
 
-          {/* Dashboard de Respuesta: Diseño Moderno con Imágenes y Widgets */}
-          {travelData && (
-            <div className="mt-8 space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-500">
+            {/* Header del Plan: Imagen de fondo con overlay oscuro */}
+            {travelData.images && travelData.images.length > 0 && (
+              <div className="relative w-full h-64 md:h-80 rounded-2xl overflow-hidden shadow-2xl">
+                <img 
+                  src={travelData.images[0]} 
+                  alt={formData.destination}
+                  className="w-full h-full object-cover"
+                />
+                <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/40 to-transparent"></div>
+                <div className="absolute bottom-0 left-0 right-0 p-6 md:p-8">
+                  <h3 className="text-3xl md:text-4xl font-extrabold tracking-tight text-white mb-2">
+                    {formData.destination}
+                  </h3>
+                  {travelData.weather && (
+                    <p className="text-white/90 text-lg font-medium">
+                      {travelData.weather.condition}
+                    </p>
+                  )}
+                </div>
+              </div>
+            )}
+
+            {/* Layout Principal: Sidebar + Contenido */}
+            <div className="grid grid-cols-1 lg:grid-cols-4 gap-6">
               
-              {/* Panel Superior (Hero) - Banner con Primera Imagen */}
-              {travelData.images && travelData.images.length > 0 && (
-                <div className="relative w-full h-64 md:h-80 lg:h-96 rounded-2xl overflow-hidden shadow-2xl">
-                  <img 
-                    src={travelData.images[0]} 
-                    alt={formData.destination}
-                    className="w-full h-full object-cover"
-                  />
-                  <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-black/20 to-transparent"></div>
-                  <div className="absolute bottom-0 left-0 right-0 p-6 md:p-8">
-                    <h2 className="text-3xl md:text-4xl font-bold text-white mb-2">
-                      {formData.destination}
-                    </h2>
-                    {travelData.weather && (
-                      <p className="text-white/90 text-lg">
-                        {travelData.weather.condition}
-                      </p>
+              {/* Panel Lateral (Sidebar) - Widgets */}
+              <div className="lg:col-span-1 space-y-4">
+                
+                {/* Widget: Clima */}
+                {travelData.weather && travelData.weather.temp !== null && (
+                  <div className="bg-gradient-to-br from-blue-500 to-blue-600 rounded-xl p-6 shadow-lg text-white">
+                    <div className="flex items-center gap-3 mb-4">
+                      <Cloud className="w-6 h-6" />
+                      <h3 className="font-semibold text-lg">Clima Actual</h3>
+                    </div>
+                    <div className="flex items-baseline gap-2 mb-2">
+                      <span className="text-4xl font-bold">{travelData.weather.temp}°</span>
+                      <span className="text-xl text-blue-100">C</span>
+                    </div>
+                    {travelData.weather.condition && (
+                      <p className="text-blue-100 mb-3">{travelData.weather.condition}</p>
+                    )}
+                    {travelData.weather.feels_like && (
+                      <div className="flex items-center gap-2 text-blue-100 text-sm">
+                        <Thermometer className="w-4 h-4" />
+                        <span>Sensación: {travelData.weather.feels_like}°C</span>
+                      </div>
                     )}
                   </div>
-                </div>
-              )}
+                )}
 
-              {/* Layout Principal: Sidebar + Contenido */}
-              <div className="grid grid-cols-1 lg:grid-cols-4 gap-6">
-                
-                {/* Panel Lateral (Sidebar) - Widgets */}
-                <div className="lg:col-span-1 space-y-4">
+                {/* Widget: Hora Local */}
+                {travelData.info && travelData.info.local_time && (
+                  <div className="bg-gradient-to-br from-indigo-500 to-indigo-600 rounded-xl p-6 shadow-lg text-white">
+                    <div className="flex items-center gap-3 mb-4">
+                      <Clock className="w-6 h-6" />
+                      <h3 className="font-semibold text-lg">Hora Local</h3>
+                    </div>
+                    <div className="text-3xl font-bold">{travelData.info.local_time}</div>
+                  </div>
+                )}
+
+              </div>
+
+              {/* Panel Central - Plan de Viaje */}
+              <div className="lg:col-span-3">
+                <div className="bg-white rounded-2xl shadow-lg border border-slate-100 p-6 md:p-8">
+                  <div className="flex items-center gap-3 mb-6 pb-4 border-b border-slate-200">
+                    <div className="p-2 bg-blue-100 rounded-lg">
+                      <Plane className="w-5 h-5 text-blue-600" />
+                    </div>
+                    <h2 className="text-2xl font-extrabold tracking-tight text-slate-900">
+                      Tu Plan de Viaje por Alex
+                    </h2>
+                  </div>
                   
-                  {/* Widget: Clima */}
-                  {travelData.weather && travelData.weather.temp !== null && (
-                    <div className="bg-gradient-to-br from-blue-500 to-blue-600 rounded-xl p-6 shadow-lg text-white">
-                      <div className="flex items-center gap-3 mb-4">
-                        <Cloud className="w-6 h-6" />
-                        <h3 className="font-semibold text-lg">Clima Actual</h3>
-                      </div>
-                      <div className="flex items-baseline gap-2 mb-2">
-                        <span className="text-4xl font-bold">{travelData.weather.temp}°</span>
-                        <span className="text-xl text-blue-100">C</span>
-                      </div>
-                      {travelData.weather.condition && (
-                        <p className="text-blue-100 mb-3">{travelData.weather.condition}</p>
-                      )}
-                      {travelData.weather.feels_like && (
-                        <div className="flex items-center gap-2 text-blue-100 text-sm">
-                          <Thermometer className="w-4 h-4" />
-                          <span>Sensación: {travelData.weather.feels_like}°C</span>
-                        </div>
-                      )}
-                    </div>
-                  )}
-
-                  {/* Widget: Hora Local */}
-                  {travelData.info && travelData.info.local_time && (
-                    <div className="bg-gradient-to-br from-indigo-500 to-indigo-600 rounded-xl p-6 shadow-lg text-white">
-                      <div className="flex items-center gap-3 mb-4">
-                        <Clock className="w-6 h-6" />
-                        <h3 className="font-semibold text-lg">Hora Local</h3>
-                      </div>
-                      <div className="text-3xl font-bold">{travelData.info.local_time}</div>
-                    </div>
-                  )}
-
-                </div>
-
-                {/* Panel Central - Plan de Viaje */}
-                <div className="lg:col-span-3">
-                  <div className="bg-white/80 backdrop-blur-sm rounded-2xl border border-slate-200/50 shadow-lg p-6 md:p-8">
-                    <div className="flex items-center gap-3 mb-6 pb-4 border-b border-slate-200">
-                      <div className="p-2 bg-blue-100 rounded-lg">
-                        <Plane className="w-5 h-5 text-blue-600" />
-                      </div>
-                      <h2 className="text-2xl font-bold text-slate-800">
-                        Tu Plan de Viaje por Alex
-                      </h2>
-                    </div>
-                    
-                    {/* ReactMarkdown con estilos profesionales */}
-                    <div className="markdown-content text-slate-700 leading-relaxed
-                                  [&>h1]:text-3xl [&>h1]:font-bold [&>h1]:text-slate-800 [&>h1]:mt-8 [&>h1]:mb-4 [&>h1]:pb-3 [&>h1]:border-b [&>h1]:border-slate-200
-                                  [&>h2]:text-2xl [&>h2]:font-bold [&>h2]:text-slate-800 [&>h2]:mt-6 [&>h2]:mb-3
-                                  [&>h3]:text-xl [&>h3]:font-bold [&>h3]:text-slate-800 [&>h3]:mt-5 [&>h3]:mb-2
-                                  [&>p]:my-4 [&>p]:leading-relaxed [&>p]:text-slate-700
+                  {/* ReactMarkdown con estilos profesionales */}
+                  <div className="markdown-content text-slate-600 leading-relaxed
+                                  [&>h1]:text-3xl [&>h1]:font-extrabold [&>h1]:tracking-tight [&>h1]:text-slate-900 [&>h1]:mt-8 [&>h1]:mb-4 [&>h1]:pb-3 [&>h1]:border-b [&>h1]:border-slate-200
+                                  [&>h2]:text-2xl [&>h2]:font-extrabold [&>h2]:tracking-tight [&>h2]:text-slate-900 [&>h2]:mt-6 [&>h2]:mb-3
+                                  [&>h3]:text-xl [&>h3]:font-extrabold [&>h3]:tracking-tight [&>h3]:text-slate-900 [&>h3]:mt-5 [&>h3]:mb-2
+                                  [&>p]:my-4 [&>p]:leading-relaxed [&>p]:text-slate-600
                                   [&>strong]:font-semibold [&>strong]:text-slate-900
                                   [&>em]:italic [&>em]:text-slate-600
                                   [&>ul]:my-4 [&>ul]:list-disc [&>ul]:ml-6 [&>ul]:space-y-3 [&>ul>li]:leading-relaxed [&>ul>li]:marker:text-blue-600
@@ -876,274 +882,201 @@ const TravelPlanner = () => {
                                   [&>code]:text-blue-700 [&>code]:bg-blue-50 [&>code]:px-1.5 [&>code]:py-0.5 [&>code]:rounded [&>code]:text-sm [&>code]:font-mono
                                   [&>blockquote]:border-l-4 [&>blockquote]:border-blue-300 [&>blockquote]:pl-4 [&>blockquote]:italic [&>blockquote]:text-slate-600 [&>blockquote]:my-4
                                   [&>hr]:border-slate-200 [&>hr]:my-8 [&>hr]:border-t">
-                      <ReactMarkdown>{travelData.gemini_response}</ReactMarkdown>
-                    </div>
+                    <ReactMarkdown>{travelData.gemini_response}</ReactMarkdown>
                   </div>
-                </div>
-
-              </div>
-
-              {/* Galería - Otras Imágenes */}
-              {travelData.images && travelData.images.length > 1 && (
-                <div className="bg-white/80 backdrop-blur-sm rounded-2xl border border-slate-200/50 shadow-lg p-6">
-                  <h3 className="text-xl font-bold text-slate-800 mb-4">Galería de Imágenes</h3>
-                  <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
-                    {travelData.images.slice(1).map((imageUrl, index) => (
-                      <div 
-                        key={index}
-                        className="relative aspect-video rounded-lg overflow-hidden shadow-md hover:shadow-xl transition-shadow duration-300 group"
-                      >
-                        <img 
-                          src={imageUrl} 
-                          alt={`${formData.destination} ${index + 2}`}
-                          className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-300"
-                        />
-                      </div>
-                    ))}
-                  </div>
-                </div>
-              )}
-
-              {/* Sección Premium */}
-              <div className="bg-gradient-to-br from-amber-50 via-yellow-50 to-amber-100 rounded-2xl border-2 border-amber-300/50 shadow-xl p-8 md:p-10 relative overflow-hidden">
-                {/* Decoración de fondo */}
-                <div className="absolute top-0 right-0 w-32 h-32 bg-gradient-to-br from-amber-200/30 to-yellow-200/30 rounded-full blur-3xl"></div>
-                <div className="absolute bottom-0 left-0 w-24 h-24 bg-gradient-to-tr from-yellow-200/30 to-amber-200/30 rounded-full blur-2xl"></div>
-                
-                <div className="relative z-10">
-                  <div className="flex items-center gap-3 mb-4">
-                    <span className="text-4xl">👑</span>
-                    <h3 className="text-3xl font-bold text-slate-800">ViajeIA PRO</h3>
-                  </div>
-                  
-                  <p className="text-lg text-slate-700 mb-6 leading-relaxed">
-                    Próximamente: Reservas directas, Alertas de precios y Guías offline.
-                  </p>
-                  
-                  <p className="text-sm text-slate-600 mb-6">
-                    Accede a funcionalidades premium que harán tu experiencia de viaje aún mejor. 
-                    Únete a nuestra lista de espera para ser de los primeros en conocerlas.
-                  </p>
-                  
-                  <button
-                    onClick={() => {
-                      alert('¡Gracias por tu interés! Te notificaremos cuando ViajeIA PRO esté disponible. 🎉');
-                    }}
-                    className="px-6 py-3 
-                               bg-gradient-to-r from-amber-500 to-yellow-500 
-                               hover:from-amber-600 hover:to-yellow-600
-                               text-white font-semibold rounded-xl
-                               shadow-lg hover:shadow-xl
-                               transition-all duration-300
-                               transform hover:scale-105 active:scale-95
-                               flex items-center gap-2"
-                  >
-                    <span>Unirse a la lista de espera</span>
-                    <span className="text-lg">→</span>
-                  </button>
                 </div>
               </div>
 
-              {/* Interfaz de Chat Continuo */}
-              <div className="bg-white/80 backdrop-blur-sm rounded-2xl border border-slate-200/50 shadow-lg p-6">
-                <div className="flex items-center gap-3 mb-4 pb-4 border-b border-slate-200">
-                  <MessageCircle className="w-5 h-5 text-blue-600" />
-                  <h3 className="text-xl font-bold text-slate-800">Chat con Alex</h3>
-                </div>
+            </div>
 
-                {/* Historial de Chat */}
-                <div 
-                  className="max-h-96 overflow-y-auto mb-4 space-y-3 pr-2"
-                  style={{ scrollbarWidth: 'none', msOverflowStyle: 'none' }}
-                >
-                  <style>{`
-                    div[style*="scrollbarWidth"]::-webkit-scrollbar {
-                      display: none;
-                    }
-                  `}</style>
-                  {chatHistory.map((msg, index) => (
-                    <div
+            {/* Grid de Galería: grid-cols-1 md:grid-cols-3 gap-4 */}
+            {travelData.images && travelData.images.length > 1 && (
+              <div className="bg-slate-50 rounded-2xl p-6">
+                <h3 className="text-xl font-extrabold tracking-tight text-slate-900 mb-4">Galería de Imágenes</h3>
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                  {travelData.images.slice(1).map((imageUrl, index) => (
+                    <div 
                       key={index}
-                      className={`flex items-end gap-2 ${msg.role === 'user' ? 'justify-end' : 'justify-start'}`}
+                      className="relative rounded-xl overflow-hidden shadow-md hover:shadow-xl transition-all duration-300 group"
                     >
-                      {/* Avatar para Alex (solo a la izquierda) */}
-                      {msg.role === 'model' && (
-                        <div className="flex-shrink-0 w-8 h-8 rounded-full bg-gradient-to-br from-blue-500 to-blue-600 flex items-center justify-center shadow-sm">
-                          <Bot className="w-4 h-4 text-white" />
-                        </div>
-                      )}
-                      
-                      {/* Burbuja de Mensaje */}
-                      <div
-                        className={`max-w-[75%] shadow-sm ${
-                          msg.role === 'user'
-                            ? 'bg-blue-600 text-white rounded-2xl rounded-br-none px-5 py-3'
-                            : 'bg-gray-100 text-gray-800 rounded-2xl rounded-bl-none px-5 py-3'
-                        }`}
-                      >
-                        {/* Nombre del remitente */}
-                        <div className={`text-xs font-semibold mb-1.5 ${
-                          msg.role === 'user' ? 'text-blue-100' : 'text-gray-500'
-                        }`}>
-                          {msg.role === 'user' ? 'Tú' : 'Alex'}
-                        </div>
-                        
-                        {/* Contenido del mensaje */}
-                        {msg.role === 'model' ? (
-                          <div className="text-sm leading-relaxed text-gray-800
-                            [&>h1]:text-xl [&>h1]:font-bold [&>h1]:text-gray-900 [&>h1]:mt-3 [&>h1]:mb-2 [&>h1]:pb-1 [&>h1]:border-b [&>h1]:border-gray-300
-                            [&>h2]:text-lg [&>h2]:font-bold [&>h2]:text-gray-900 [&>h2]:mt-3 [&>h2]:mb-2 [&>h2]:pb-1 [&>h2]:border-b [&>h2]:border-gray-300
-                            [&>h3]:text-base [&>h3]:font-bold [&>h3]:text-gray-900 [&>h3]:mt-2 [&>h3]:mb-1
-                            [&>p]:my-2 [&>p]:leading-relaxed [&>p]:text-gray-800
-                            [&>strong]:text-gray-900 [&>strong]:font-semibold
-                            [&>em]:text-gray-700 [&>em]:italic
-                            [&>ul]:my-2 [&>ul]:pl-4 [&>ul]:list-disc [&>ul]:space-y-1
-                            [&>ol]:my-2 [&>ol]:pl-4 [&>ol]:list-decimal [&>ol]:space-y-1
-                            [&>li]:leading-relaxed [&>li]:text-gray-800
-                            [&>a]:text-blue-600 [&>a]:no-underline [&>a]:font-medium hover:[&>a]:underline
-                            [&>code]:text-blue-700 [&>code]:bg-blue-50 [&>code]:px-1.5 [&>code]:py-0.5 [&>code]:rounded [&>code]:text-xs [&>code]:font-mono
-                            [&>blockquote]:border-l-4 [&>blockquote]:border-blue-300 [&>blockquote]:pl-3 [&>blockquote]:italic [&>blockquote]:text-gray-600 [&>blockquote]:my-2
-                            [&>hr]:border-gray-300 [&>hr]:my-3">
-                            <ReactMarkdown>{msg.parts}</ReactMarkdown>
-                          </div>
-                        ) : (
-                          <div className="text-sm leading-relaxed whitespace-pre-wrap text-white">
-                            {msg.parts}
-                          </div>
-                        )}
-                      </div>
-                      
-                      {/* Avatar para Usuario (solo a la derecha) */}
-                      {msg.role === 'user' && (
-                        <div className="flex-shrink-0 w-8 h-8 rounded-full bg-gradient-to-br from-gray-400 to-gray-500 flex items-center justify-center shadow-sm">
-                          <User className="w-4 h-4 text-white" />
-                        </div>
-                      )}
+                      <img 
+                        src={imageUrl} 
+                        alt={`${formData.destination} ${index + 2}`}
+                        className="w-full h-48 object-cover rounded-xl hover:scale-105 transition-transform duration-300"
+                      />
                     </div>
                   ))}
-                  {chatLoading && (
-                    <div className="flex items-end gap-2 justify-start">
+                </div>
+              </div>
+            )}
+
+            {/* Interfaz de Chat Continuo */}
+            <div className="bg-white rounded-2xl shadow-lg border border-slate-100 p-6">
+              <div className="flex items-center gap-3 mb-4 pb-4 border-b border-slate-200">
+                <MessageCircle className="w-5 h-5 text-blue-600" />
+                <h3 className="text-xl font-extrabold tracking-tight text-slate-900">Chat con Alex</h3>
+              </div>
+
+              {/* Historial de Chat */}
+              <div 
+                className="max-h-96 overflow-y-auto mb-4 space-y-3 pr-2"
+                style={{ scrollbarWidth: 'none', msOverflowStyle: 'none' }}
+              >
+                <style>{`
+                  div[style*="scrollbarWidth"]::-webkit-scrollbar {
+                    display: none;
+                  }
+                `}</style>
+                {chatHistory.map((msg, index) => (
+                  <div
+                    key={index}
+                    className={`flex items-end gap-2 ${msg.role === 'user' ? 'justify-end' : 'justify-start'}`}
+                  >
+                    {/* Avatar para Alex (solo a la izquierda) */}
+                    {msg.role === 'model' && (
                       <div className="flex-shrink-0 w-8 h-8 rounded-full bg-gradient-to-br from-blue-500 to-blue-600 flex items-center justify-center shadow-sm">
                         <Bot className="w-4 h-4 text-white" />
                       </div>
-                      <div className="bg-gray-100 text-gray-800 rounded-2xl rounded-bl-none px-5 py-3 shadow-sm">
-                        <Loader2 className="w-5 h-5 animate-spin text-blue-600" />
-                      </div>
-                    </div>
-                  )}
-                  {/* Elemento invisible para scroll automático */}
-                  <div ref={chatEndRef} />
-                </div>
-
-                {/* Input de Chat */}
-                <div className="flex gap-2">
-                  <input
-                    type="text"
-                    value={chatMessage}
-                    onChange={(e) => setChatMessage(e.target.value)}
-                    onKeyPress={(e) => e.key === 'Enter' && !chatLoading && handleChatSend()}
-                    placeholder="Pregunta algo sobre tu viaje... (ej: ¿Es seguro? ¿Qué más puedo hacer?)"
-                    disabled={chatLoading}
-                    className="flex-1 px-4 py-3 
-                               bg-white border border-slate-200 rounded-xl
-                               focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500
-                               disabled:bg-slate-50 disabled:cursor-not-allowed
-                               text-slate-800 placeholder-slate-400
-                               transition-all duration-300"
-                  />
-                  <button
-                    onClick={handleChatSend}
-                    disabled={chatLoading || !chatMessage.trim()}
-                    className="px-6 py-3 
-                               bg-blue-600 text-white rounded-xl
-                               hover:bg-blue-700 disabled:bg-slate-300 disabled:cursor-not-allowed
-                               transition-all duration-300
-                               flex items-center gap-2"
-                  >
-                    {chatLoading ? (
-                      <Loader2 className="w-5 h-5 animate-spin" />
-                    ) : (
-                      <Send className="w-5 h-5" />
                     )}
-                  </button>
-                </div>
-              </div>
-
-            </div>
-          )}
-
-        </div>
-
-        {/* Modal de Favoritos */}
-        {showFavorites && (
-          <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 p-4">
-            <div className="bg-white rounded-2xl shadow-2xl max-w-2xl w-full max-h-[80vh] overflow-hidden flex flex-col">
-              <div className="flex items-center justify-between p-6 border-b border-slate-200">
-                <h2 className="text-2xl font-bold text-slate-800 flex items-center gap-2">
-                  <BookOpen className="w-6 h-6 text-blue-600" />
-                  Mis Viajes Guardados
-                </h2>
-                <button
-                  onClick={() => setShowFavorites(false)}
-                  className="p-2 hover:bg-slate-100 rounded-lg transition-colors"
-                >
-                  <X className="w-5 h-5 text-slate-600" />
-                </button>
-              </div>
-              
-              <div className="flex-1 overflow-y-auto p-6">
-                {favorites.length === 0 ? (
-                  <div className="text-center py-12 text-slate-500">
-                    <BookOpen className="w-16 h-16 mx-auto mb-4 text-slate-300" />
-                    <p className="text-lg">No tienes viajes guardados aún</p>
-                    <p className="text-sm mt-2">Planifica un viaje y guárdalo para accederlo después</p>
-                  </div>
-                ) : (
-                  <div className="space-y-4">
-                    {favorites.map((fav, index) => (
-                      <div
-                        key={index}
-                        className="border border-slate-200 rounded-xl p-4 hover:shadow-md transition-shadow"
-                      >
-                        <div className="flex items-start justify-between">
-                          <div className="flex-1">
-                            <h3 className="font-bold text-lg text-slate-800 mb-1">
-                              {fav.destination}
-                            </h3>
-                            <div className="text-sm text-slate-600 space-y-1">
-                              {fav.date && <p>📅 {fav.date}</p>}
-                              {fav.budget && <p>💰 {fav.budget}</p>}
-                              {fav.style && <p>🎯 {fav.style}</p>}
-                            </div>
-                            {fav.summary && (
-                              <p className="text-sm text-slate-500 mt-2 line-clamp-2">
-                                {fav.summary}
-                              </p>
-                            )}
-                          </div>
-                          <div className="flex gap-2 ml-4">
-                            <button
-                              onClick={() => handleLoadFavorite(fav)}
-                              className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors text-sm"
-                            >
-                              Cargar
-                            </button>
-                            <button
-                              onClick={() => handleDeleteFavorite(index)}
-                              className="px-4 py-2 bg-red-100 text-red-600 rounded-lg hover:bg-red-200 transition-colors text-sm"
-                            >
-                              Eliminar
-                            </button>
-                          </div>
-                        </div>
+                    
+                    {/* Burbuja de Mensaje */}
+                    <div
+                      className={`max-w-[75%] shadow-sm ${
+                        msg.role === 'user'
+                          ? 'bg-blue-600 text-white rounded-2xl rounded-br-none px-5 py-3'
+                          : 'bg-gray-100 text-gray-800 rounded-2xl rounded-bl-none px-5 py-3'
+                      }`}
+                    >
+                      {/* Nombre del remitente */}
+                      <div className={`text-xs font-semibold mb-1.5 ${
+                        msg.role === 'user' ? 'text-blue-100' : 'text-gray-500'
+                      }`}>
+                        {msg.role === 'user' ? 'Tú' : 'Alex'}
                       </div>
-                    ))}
+                      
+                      {/* Contenido del mensaje */}
+                      {msg.role === 'model' ? (
+                        <div className="text-sm leading-relaxed text-gray-800
+                          [&>h1]:text-xl [&>h1]:font-bold [&>h1]:text-gray-900 [&>h1]:mt-3 [&>h1]:mb-2 [&>h1]:pb-1 [&>h1]:border-b [&>h1]:border-gray-300
+                          [&>h2]:text-lg [&>h2]:font-bold [&>h2]:text-gray-900 [&>h2]:mt-3 [&>h2]:mb-2 [&>h2]:pb-1 [&>h2]:border-b [&>h2]:border-gray-300
+                          [&>h3]:text-base [&>h3]:font-bold [&>h3]:text-gray-900 [&>h3]:mt-2 [&>h3]:mb-1
+                          [&>p]:my-2 [&>p]:leading-relaxed [&>p]:text-gray-800
+                          [&>strong]:text-gray-900 [&>strong]:font-semibold
+                          [&>em]:text-gray-700 [&>em]:italic
+                          [&>ul]:my-2 [&>ul]:pl-4 [&>ul]:list-disc [&>ul]:space-y-1
+                          [&>ol]:my-2 [&>ol]:pl-4 [&>ol]:list-decimal [&>ol]:space-y-1
+                          [&>li]:leading-relaxed [&>li]:text-gray-800
+                          [&>a]:text-blue-600 [&>a]:no-underline [&>a]:font-medium hover:[&>a]:underline
+                          [&>code]:text-blue-700 [&>code]:bg-blue-50 [&>code]:px-1.5 [&>code]:py-0.5 [&>code]:rounded [&>code]:text-xs [&>code]:font-mono
+                          [&>blockquote]:border-l-4 [&>blockquote]:border-blue-300 [&>blockquote]:pl-3 [&>blockquote]:italic [&>blockquote]:text-gray-600 [&>blockquote]:my-2
+                          [&>hr]:border-gray-300 [&>hr]:my-3">
+                          <ReactMarkdown>{msg.parts}</ReactMarkdown>
+                        </div>
+                      ) : (
+                        <div className="text-sm leading-relaxed whitespace-pre-wrap text-white">
+                          {msg.parts}
+                        </div>
+                      )}
+                    </div>
+                    
+                    {/* Avatar para Usuario (solo a la derecha) */}
+                    {msg.role === 'user' && (
+                      <div className="flex-shrink-0 w-8 h-8 rounded-full bg-gradient-to-br from-gray-400 to-gray-500 flex items-center justify-center shadow-sm">
+                        <User className="w-4 h-4 text-white" />
+                      </div>
+                    )}
+                  </div>
+                ))}
+                {chatLoading && (
+                  <div className="flex items-end gap-2 justify-start">
+                    <div className="flex-shrink-0 w-8 h-8 rounded-full bg-gradient-to-br from-blue-500 to-blue-600 flex items-center justify-center shadow-sm">
+                      <Bot className="w-4 h-4 text-white" />
+                    </div>
+                    <div className="bg-gray-100 text-gray-800 rounded-2xl rounded-bl-none px-5 py-3 shadow-sm">
+                      <Loader2 className="w-5 h-5 animate-spin text-blue-600" />
+                    </div>
                   </div>
                 )}
+                {/* Elemento invisible para scroll automático */}
+                <div ref={chatEndRef} />
+              </div>
+
+              {/* Input de Chat */}
+              <div className="flex gap-2">
+                <input
+                  type="text"
+                  value={chatMessage}
+                  onChange={(e) => setChatMessage(e.target.value)}
+                  onKeyPress={(e) => e.key === 'Enter' && !chatLoading && handleChatSend()}
+                  placeholder="Pregunta algo sobre tu viaje... (ej: ¿Es seguro? ¿Qué más puedo hacer?)"
+                  disabled={chatLoading}
+                  className="flex-1 px-4 py-3 
+                             bg-white border border-slate-200 rounded-xl
+                             focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500
+                             disabled:bg-slate-50 disabled:cursor-not-allowed
+                             text-slate-800 placeholder-slate-400
+                             transition-all duration-200"
+                />
+                <button
+                  onClick={handleChatSend}
+                  disabled={chatLoading || !chatMessage.trim()}
+                  className="px-6 py-3 
+                             bg-blue-600 text-white rounded-xl
+                             hover:bg-blue-700 disabled:bg-slate-300 disabled:cursor-not-allowed
+                             transition-all duration-200
+                             flex items-center gap-2"
+                >
+                  {chatLoading ? (
+                    <Loader2 className="w-5 h-5 animate-spin" />
+                  ) : (
+                    <Send className="w-5 h-5" />
+                  )}
+                </button>
               </div>
             </div>
-          </div>
+
+          </section>
         )}
+
+        {/* Sección ViajeIA Pro: Footer Premium */}
+        <footer className="mt-8 bg-gradient-to-br from-slate-800 to-slate-900 rounded-3xl border-2 border-amber-500/30 shadow-xl p-8 md:p-10 relative overflow-hidden">
+          {/* Decoración de fondo */}
+          <div className="absolute top-0 right-0 w-32 h-32 bg-gradient-to-br from-amber-500/20 to-yellow-500/20 rounded-full blur-3xl"></div>
+          <div className="absolute bottom-0 left-0 w-24 h-24 bg-gradient-to-tr from-yellow-500/20 to-amber-500/20 rounded-full blur-2xl"></div>
+          
+          <div className="relative z-10">
+            <div className="flex items-center gap-3 mb-4">
+              <span className="text-4xl">👑</span>
+              <h3 className="text-3xl font-bold text-white">ViajeIA PRO</h3>
+            </div>
+            
+            <p className="text-lg text-slate-200 mb-6 leading-relaxed">
+              Próximamente: Reservas directas, Alertas de precios y Guías offline.
+            </p>
+            
+            <p className="text-sm text-slate-300 mb-6">
+              Accede a funcionalidades premium que harán tu experiencia de viaje aún mejor. 
+              Únete a nuestra lista de espera para ser de los primeros en conocerlas.
+            </p>
+            
+            <button
+              onClick={() => {
+                alert('¡Gracias por tu interés! Te notificaremos cuando ViajeIA PRO esté disponible. 🎉');
+              }}
+              className="px-6 py-3 
+                         bg-gradient-to-r from-amber-500 to-yellow-500 
+                         hover:from-amber-600 hover:to-yellow-600
+                         text-white font-semibold rounded-xl
+                         shadow-lg hover:shadow-xl
+                         transition-all duration-300
+                         transform hover:scale-105 active:scale-95
+                         flex items-center gap-2"
+            >
+              <span>Unirse a la lista de espera</span>
+              <span className="text-lg">→</span>
+            </button>
+          </div>
+        </footer>
 
         {/* Footer con métricas */}
         <div className="mt-8 text-center space-y-2">
@@ -1156,7 +1089,79 @@ const TravelPlanner = () => {
             </p>
           )}
         </div>
+
       </div>
+
+      {/* Modal de Favoritos */}
+      {showFavorites && (
+        <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-2xl shadow-2xl max-w-2xl w-full max-h-[80vh] overflow-hidden flex flex-col">
+            <div className="flex items-center justify-between p-6 border-b border-slate-200">
+              <h2 className="text-2xl font-bold text-slate-800 flex items-center gap-2">
+                <BookOpen className="w-6 h-6 text-blue-600" />
+                Mis Viajes Guardados
+              </h2>
+              <button
+                onClick={() => setShowFavorites(false)}
+                className="p-2 hover:bg-slate-100 rounded-lg transition-colors"
+              >
+                <X className="w-5 h-5 text-slate-600" />
+              </button>
+            </div>
+            
+            <div className="flex-1 overflow-y-auto p-6">
+              {favorites.length === 0 ? (
+                <div className="text-center py-12 text-slate-500">
+                  <BookOpen className="w-16 h-16 mx-auto mb-4 text-slate-300" />
+                  <p className="text-lg">No tienes viajes guardados aún</p>
+                  <p className="text-sm mt-2">Planifica un viaje y guárdalo para accederlo después</p>
+                </div>
+              ) : (
+                <div className="space-y-4">
+                  {favorites.map((fav, index) => (
+                    <div
+                      key={index}
+                      className="border border-slate-200 rounded-xl p-4 hover:shadow-md transition-shadow"
+                    >
+                      <div className="flex items-start justify-between">
+                        <div className="flex-1">
+                          <h3 className="font-bold text-lg text-slate-800 mb-1">
+                            {fav.destination}
+                          </h3>
+                          <div className="text-sm text-slate-600 space-y-1">
+                            {fav.date && <p>📅 {fav.date}</p>}
+                            {fav.budget && <p>💰 {fav.budget}</p>}
+                            {fav.style && <p>🎯 {fav.style}</p>}
+                          </div>
+                          {fav.summary && (
+                            <p className="text-sm text-slate-500 mt-2 line-clamp-2">
+                              {fav.summary}
+                            </p>
+                          )}
+                        </div>
+                        <div className="flex gap-2 ml-4">
+                          <button
+                            onClick={() => handleLoadFavorite(fav)}
+                            className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors text-sm"
+                          >
+                            Cargar
+                          </button>
+                          <button
+                            onClick={() => handleDeleteFavorite(index)}
+                            className="px-4 py-2 bg-red-100 text-red-600 rounded-lg hover:bg-red-200 transition-colors text-sm"
+                          >
+                            Eliminar
+                          </button>
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Componente oculto para generar PDF estilo revista */}
       {travelData && (
