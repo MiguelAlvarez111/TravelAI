@@ -236,6 +236,7 @@ const TravelPlanner = () => {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
+          'X-User-ID': user?.uid || 'anonymous',
         },
         body: JSON.stringify({
           destination: cleanDestination,
@@ -332,6 +333,7 @@ const TravelPlanner = () => {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
+          'X-User-ID': user?.uid || 'anonymous',
         },
         body: JSON.stringify({
           destination: formData.destination.trim(),

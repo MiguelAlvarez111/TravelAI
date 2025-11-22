@@ -96,8 +96,34 @@ app = FastAPI(
     version="1.0.0"
 )
 
-# Configurar Rate Limiting con slowapi
-limiter = Limiter(key_func=get_remote_address)
+# Función personalizada para rate limiting por User ID
+def get_rate_limit_key(request: Request):
+    """
+    Obtiene la clave para rate limiting basada en User ID.
+    
+    Estrategia:
+    1. Intenta leer el header X-User-ID
+    2. Si existe, usa ese valor como clave (cada usuario tiene su propio contador)
+    3. Si NO existe (ej: usuario no logueado), usa get_remote_address (IP) como fallback
+    
+    Args:
+        request: Request de FastAPI
+        
+    Returns:
+        str: Clave única para rate limiting (User ID o IP)
+    """
+    # Intentar leer el header X-User-ID
+    user_id = request.headers.get("X-User-ID")
+    
+    if user_id and user_id.strip():
+        # Si existe y no está vacío, usar el User ID
+        return f"user:{user_id.strip()}"
+    else:
+        # Si no existe, usar IP como fallback (comportamiento original)
+        return get_remote_address(request)
+
+# Configurar Rate Limiting con slowapi usando la función personalizada
+limiter = Limiter(key_func=get_rate_limit_key)
 app.state.limiter = limiter
 
 # Personalizar el handler de rate limit exceeded con mensaje en español
