@@ -137,6 +137,7 @@ class TravelRequest(BaseModel):
     date: str
     budget: str
     style: str
+    user_currency: str = "USD"  # Moneda del usuario (detectada automáticamente en frontend)
 
 
 class TravelResponse(BaseModel):
@@ -256,7 +257,7 @@ async def create_travel_plan(request: TravelRequest):
         HTTPException: Si hay un error al procesar la solicitud
     """
     try:
-        logger.info(f"📨 Nueva solicitud recibida: Destino={request.destination}, Fecha={request.date}, Presupuesto={request.budget}, Estilo={request.style}")
+        logger.info(f"📨 Nueva solicitud recibida: Destino={request.destination}, Fecha={request.date}, Presupuesto={request.budget}, Estilo={request.style}, Moneda={request.user_currency}")
         
         # Validar que el destino no esté vacío
         if not request.destination or not request.destination.strip():
@@ -300,7 +301,7 @@ async def create_travel_plan(request: TravelRequest):
         
         # Llamar a Gemini (síncrono pero lo ejecutamos en un executor para no bloquear)
         # Verificar que los argumentos sean correctos antes de enviar
-        logger.info(f"📤 Enviando a Gemini: destination='{destination}', date='{request.date}', budget='{request.budget}', style='{request.style}'")
+        logger.info(f"📤 Enviando a Gemini: destination='{destination}', date='{request.date}', budget='{request.budget}', style='{request.style}', currency='{request.user_currency}'")
         
         loop = asyncio.get_event_loop()
         gemini_task = loop.run_in_executor(
@@ -309,7 +310,8 @@ async def create_travel_plan(request: TravelRequest):
                 destination=destination,
                 date=request.date or "",
                 budget=request.budget or "",
-                style=request.style or ""
+                style=request.style or "",
+                user_currency=request.user_currency or "USD"
             )
         )
         

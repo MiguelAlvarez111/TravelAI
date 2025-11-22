@@ -32,6 +32,10 @@ REGLAS DE ORO:
 ## 💡 CONSEJOS DE ALEX
 
 ## 💰 ESTIMACIÓN DE COSTOS
+   - Proporciona los costos principales en USD (dólares estadounidenses).
+   - Si el usuario tiene una moneda diferente, incluye también la conversión aproximada en su moneda local.
+   - Formato: "$100 USD (~400,000 COP)" o similar según la moneda del usuario.
+   - Incluye desglose de costos: alojamiento, comida, transporte, actividades, etc.
 
 4. Sé entusiasta, profesional y detallado en cada sección.
 5. Usa emojis apropiados para hacer la información más atractiva.
@@ -84,7 +88,8 @@ class GeminiService:
         destination: str,
         date: str = "",
         budget: str = "",
-        style: str = ""
+        style: str = "",
+        user_currency: str = "USD"
     ) -> str:
         """
         Genera una recomendación de viaje usando Gemini con campos estructurados.
@@ -94,6 +99,7 @@ class GeminiService:
             date: La fecha del viaje (opcional)
             budget: El presupuesto del viaje (opcional)
             style: El estilo de viaje (opcional)
+            user_currency: Moneda del usuario para conversión (opcional, default: USD)
             
         Returns:
             str: Recomendación de viaje formateada en Markdown con las 5 secciones estrictas
@@ -110,8 +116,9 @@ class GeminiService:
             date = date.strip() if date else ""
             budget = budget.strip() if budget else ""
             style = style.strip() if style else ""
+            user_currency = user_currency.strip() if user_currency else "USD"
             
-            logger.info(f"📤 Generando recomendación de viaje - Destino: '{destination}', Fecha: '{date}', Presupuesto: '{budget}', Estilo: '{style}'")
+            logger.info(f"📤 Generando recomendación de viaje - Destino: '{destination}', Fecha: '{date}', Presupuesto: '{budget}', Estilo: '{style}', Moneda: '{user_currency}'")
             
             # Construir el prompt combinando los 4 campos en una frase coherente
             prompt_parts = [f"Planifica un viaje a {destination}"]
@@ -128,9 +135,14 @@ class GeminiService:
             # Combinar todas las partes en una frase coherente
             user_request = " ".join(prompt_parts) + "."
             
+            # Agregar instrucción sobre moneda si no es USD
+            currency_instruction = ""
+            if user_currency and user_currency.upper() != "USD":
+                currency_instruction = f"\n\nIMPORTANTE: El usuario prefiere ver los costos en su moneda local ({user_currency}). En la sección '💰 ESTIMACIÓN DE COSTOS', proporciona los valores en USD y también incluye la conversión aproximada a {user_currency}. Ejemplo: '$100 USD (~400,000 {user_currency})'."
+            
             # Construir el prompt completo incluyendo el system instruction para PLAN
             # La instrucción de sistema se inyecta antes de la pregunta del usuario
-            full_prompt = f"{SYSTEM_INSTRUCTION_PLAN}\n\n---\n\nSolicitud del usuario: {user_request}"
+            full_prompt = f"{SYSTEM_INSTRUCTION_PLAN}{currency_instruction}\n\n---\n\nSolicitud del usuario: {user_request}"
             
             # Generar respuesta usando Gemini
             # Esta es la llamada a la API de Google Gemini que envía la pregunta del usuario

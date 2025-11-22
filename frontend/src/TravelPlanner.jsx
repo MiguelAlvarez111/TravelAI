@@ -55,11 +55,21 @@ const TravelPlanner = () => {
   const [chatMessage, setChatMessage] = useState('');
   const [chatLoading, setChatLoading] = useState(false);
   const messagesEndRef = useRef(null);
+  const chatContainerRef = useRef(null);
   
-  // Scroll automático al final del chat cuando hay nuevos mensajes
+  // Estado para Lightbox de imágenes
+  const [lightboxImage, setLightboxImage] = useState(null);
+  
+  // Scroll automático al final del chat cuando hay nuevos mensajes (solo dentro del contenedor)
   useEffect(() => {
-    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
-  }, [chatHistory]);
+    if (chatContainerRef.current && messagesEndRef.current) {
+      // Hacer scroll solo dentro del contenedor del chat, no en toda la página
+      chatContainerRef.current.scrollTo({
+        top: chatContainerRef.current.scrollHeight,
+        behavior: 'smooth'
+      });
+    }
+  }, [chatHistory, chatLoading]);
 
   // Estados para Favoritos
   const [favorites, setFavorites] = useState([]);
@@ -214,6 +224,9 @@ const TravelPlanner = () => {
     setLoading(true);
 
     try {
+      // Detectar moneda local del usuario
+      const userCurrency = Intl.NumberFormat().resolvedOptions().currency || 'USD';
+      
       // Llamar al backend FastAPI
       const apiResponse = await fetch(`${API_URL}/api/plan`, {
         method: 'POST',
@@ -224,7 +237,8 @@ const TravelPlanner = () => {
           destination: formData.destination.trim(),
           date: formData.date || '',
           budget: formData.budget || '',
-          style: formData.style || ''
+          style: formData.style || '',
+          user_currency: userCurrency
         }),
       });
 
@@ -236,7 +250,7 @@ const TravelPlanner = () => {
       const data = await apiResponse.json();
       setTravelData(data);
       
-      // Agregar el plan inicial al historial de chat
+      // Agregar mensaje simulado de Alex (evitar redundancia con las cards visuales)
       setChatHistory([
         {
           role: 'user',
@@ -244,7 +258,7 @@ const TravelPlanner = () => {
         },
         {
           role: 'model',
-          parts: data.gemini_response
+          parts: `¡Listo! He diseñado tu viaje a ${formData.destination}. Revisa los detalles visuales arriba. ☝️`
         }
       ]);
 
@@ -277,6 +291,8 @@ const TravelPlanner = () => {
 
   /**
    * Función para enviar un mensaje en el chat continuo
+   * IMPORTANTE: Esta función NO debe actualizar travelData para preservar el Dashboard visual
+   * El endpoint /api/chat es solo para respuestas conversacionales, no para planes nuevos
    */
   const handleChatSend = async () => {
     if (!chatMessage.trim() || !travelData) return;
@@ -313,15 +329,14 @@ const TravelPlanner = () => {
 
       const data = await apiResponse.json();
       
-      // Agregar respuesta del modelo al historial
+      // Agregar respuesta del modelo al historial (siempre)
       const newModelMessage = { role: 'model', parts: data.gemini_response };
       setChatHistory(prev => [...prev, newModelMessage]);
 
-      // Actualizar travelData con la nueva respuesta (opcional, para mantener consistencia)
-      setTravelData(prev => ({
-        ...prev,
-        gemini_response: data.gemini_response
-      }));
+      // NO actualizar travelData - Preservar el Dashboard visual
+      // El endpoint /api/chat devuelve las mismas imágenes/weather del plan original
+      // Solo actualizamos el chatHistory para mantener la conversación
+      // Esto evita que desaparezcan las imágenes, clima y tarjetas visuales
 
     } catch (err) {
       const errorMsg = err.message || 'Error al enviar mensaje';
@@ -861,7 +876,10 @@ const TravelPlanner = () => {
 
             {/* Header del Plan: Imagen de fondo con overlay oscuro */}
             {travelData.images && travelData.images.length > 0 && (
-              <div className="relative w-full h-64 md:h-80 rounded-2xl overflow-hidden shadow-2xl">
+              <div 
+                className="relative w-full h-64 md:h-80 rounded-2xl overflow-hidden shadow-2xl cursor-pointer"
+                onClick={() => setLightboxImage(travelData.images[0])}
+              >
                 <img 
                   src={travelData.images[0]} 
                   alt={formData.destination}
@@ -964,7 +982,8 @@ const TravelPlanner = () => {
                   {travelData.images.slice(1).map((imageUrl, index) => (
                     <div 
                       key={index}
-                      className="relative rounded-xl overflow-hidden shadow-md hover:shadow-xl transition-all duration-300 group"
+                      className="relative rounded-xl overflow-hidden shadow-md hover:shadow-xl transition-all duration-300 group cursor-pointer"
+                      onClick={() => setLightboxImage(imageUrl)}
                     >
                       <img 
                         src={imageUrl} 
@@ -978,20 +997,32 @@ const TravelPlanner = () => {
             )}
 
             {/* Interfaz de Chat Continuo */}
-            <div className="bg-white rounded-2xl shadow-lg border border-slate-100 p-6">
+            <div className="bg-white rounded-2xl shadow-lg border border-slate-100 p-6 flex flex-col">
               <div className="flex items-center gap-3 mb-4 pb-4 border-b border-slate-200">
                 <MessageCircle className="w-5 h-5 text-blue-600" />
                 <h3 className="text-xl font-extrabold tracking-tight text-slate-900">Chat con Alex</h3>
               </div>
 
-              {/* Historial de Chat */}
+              {/* Historial de Chat - Contenedor estabilizado con altura fija */}
               <div 
-                className="max-h-96 overflow-y-auto mb-4 space-y-3 pr-2"
-                style={{ scrollbarWidth: 'none', msOverflowStyle: 'none' }}
+                ref={chatContainerRef}
+                className="h-[400px] overflow-y-auto p-4 border border-slate-100 rounded-xl bg-white/50 mb-4 space-y-3"
+                style={{ scrollbarWidth: 'thin', msOverflowStyle: 'auto' }}
               >
                 <style>{`
                   div[style*="scrollbarWidth"]::-webkit-scrollbar {
-                    display: none;
+                    width: 6px;
+                  }
+                  div[style*="scrollbarWidth"]::-webkit-scrollbar-track {
+                    background: #f1f5f9;
+                    border-radius: 10px;
+                  }
+                  div[style*="scrollbarWidth"]::-webkit-scrollbar-thumb {
+                    background: #cbd5e1;
+                    border-radius: 10px;
+                  }
+                  div[style*="scrollbarWidth"]::-webkit-scrollbar-thumb:hover {
+                    background: #94a3b8;
                   }
                 `}</style>
                 {chatHistory.map((msg, index) => (
@@ -1068,8 +1099,8 @@ const TravelPlanner = () => {
                 <div ref={messagesEndRef} />
               </div>
 
-              {/* Input de Chat */}
-              <div className="flex gap-2">
+              {/* Input de Chat - Sticky al final */}
+              <div className="flex gap-2 mt-auto pt-4 border-t border-slate-200">
                 <input
                   type="text"
                   value={chatMessage}
@@ -1233,6 +1264,29 @@ const TravelPlanner = () => {
       {/* Componente oculto para generar PDF estilo revista */}
       {travelData && (
         <ItineraryDocument travelData={travelData} formData={formData} />
+      )}
+
+      {/* Lightbox Modal para imágenes */}
+      {lightboxImage && (
+        <div 
+          className="fixed inset-0 bg-black/80 backdrop-blur-sm flex items-center justify-center z-50 p-4"
+          onClick={() => setLightboxImage(null)}
+        >
+          <div className="relative max-w-7xl max-h-[90vh] w-full h-full flex items-center justify-center">
+            <button
+              onClick={() => setLightboxImage(null)}
+              className="absolute top-4 right-4 z-10 w-12 h-12 bg-white/90 hover:bg-white rounded-full flex items-center justify-center shadow-lg transition-all duration-200 hover:scale-110"
+            >
+              <X className="w-6 h-6 text-slate-800" />
+            </button>
+            <img 
+              src={lightboxImage} 
+              alt="Vista ampliada"
+              className="max-w-full max-h-full object-contain rounded-lg shadow-2xl"
+              onClick={(e) => e.stopPropagation()}
+            />
+          </div>
+        </div>
       )}
     </div>
   );
