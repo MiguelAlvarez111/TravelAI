@@ -16,6 +16,7 @@ import ReactMarkdown from 'react-markdown';
 import { Plane, Loader2, Send, AlertCircle, Cloud, Clock, Thermometer, Heart, Download, BookOpen, X, MessageCircle, User, Bot, LogOut } from 'lucide-react';
 import jsPDF from 'jspdf';
 import html2canvas from 'html2canvas';
+import { Toaster, toast } from 'sonner';
 import ItineraryDocument from './ItineraryDocument';
 import { useAuth } from './contexts/AuthContext';
 import { database } from './firebase/config';
@@ -53,12 +54,12 @@ const TravelPlanner = () => {
   const [chatHistory, setChatHistory] = useState([]);
   const [chatMessage, setChatMessage] = useState('');
   const [chatLoading, setChatLoading] = useState(false);
-  const chatEndRef = useRef(null);
+  const messagesEndRef = useRef(null);
   
   // Scroll automático al final del chat cuando hay nuevos mensajes
   useEffect(() => {
-    chatEndRef.current?.scrollIntoView({ behavior: 'smooth' });
-  }, [chatHistory, chatLoading]);
+    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+  }, [chatHistory]);
 
   // Estados para Favoritos
   const [favorites, setFavorites] = useState([]);
@@ -67,6 +68,15 @@ const TravelPlanner = () => {
 
   // Estados para Métricas
   const [stats, setStats] = useState({ total_plans_generated: 0 });
+
+  // Mostrar toast de bienvenida cuando el usuario está autenticado (solo una vez)
+  const hasShownWelcome = useRef(false);
+  useEffect(() => {
+    if (user && !hasShownWelcome.current) {
+      toast.success('¡Bienvenido de nuevo!');
+      hasShownWelcome.current = true;
+    }
+  }, [user]);
 
   // Cargar favoritos al iniciar
   useEffect(() => {
@@ -181,6 +191,7 @@ const TravelPlanner = () => {
   const handleLogout = async () => {
     const result = await logout();
     if (!result.success) {
+      toast.error('Error al cerrar sesión');
       setError('Error al cerrar sesión');
     }
   };
@@ -256,6 +267,8 @@ const TravelPlanner = () => {
         errorMessage = err.message;
       }
       
+      // Toast de error
+      toast.error(errorMessage);
       setError(errorMessage);
     } finally {
       setLoading(false);
@@ -311,7 +324,9 @@ const TravelPlanner = () => {
       }));
 
     } catch (err) {
-      setError(err.message || 'Error al enviar mensaje');
+      const errorMsg = err.message || 'Error al enviar mensaje';
+      toast.error(errorMsg);
+      setError(errorMsg);
       // Remover el mensaje del usuario si falló
       setChatHistory(prev => prev.slice(0, -1));
     } finally {
@@ -345,6 +360,9 @@ const TravelPlanner = () => {
       // Mostrar indicador de carga
       setLoading(true);
       setError('');
+      
+      // Toast de inicio de generación
+      toast.info('Generando tu itinerario... 📄');
 
       // Esperar un momento para que el componente se renderice completamente
       await new Promise(resolve => setTimeout(resolve, 1000));
@@ -488,6 +506,9 @@ const TravelPlanner = () => {
       
       setLoading(false);
       
+      // Toast de éxito
+      toast.success('Descarga lista');
+      
     } catch (error) {
       // Asegurar que el elemento se oculte incluso si hay error
       const element = document.getElementById('itinerary-document');
@@ -500,7 +521,9 @@ const TravelPlanner = () => {
       
       // Mensaje de error más descriptivo
       const errorMessage = error.message || 'Error desconocido al generar el PDF';
-      setError(`Error al generar el PDF: ${errorMessage}. Por favor, intenta nuevamente.`);
+      const fullErrorMessage = `Error al generar el PDF: ${errorMessage}. Por favor, intenta nuevamente.`;
+      toast.error(fullErrorMessage);
+      setError(fullErrorMessage);
       setLoading(false);
     }
   };
@@ -534,6 +557,8 @@ const TravelPlanner = () => {
       setFavorites(updatedFavorites);
       localStorage.setItem('viajeia_favorites', JSON.stringify(updatedFavorites));
       setIsFavorited(true);
+      // Toast de éxito
+      toast.success('Viaje guardado en tus favoritos ❤️');
     }
   };
 
@@ -572,8 +597,47 @@ const TravelPlanner = () => {
     return 'U';
   };
 
+  // Componente LoadingSkeleton para carga percibida
+  const LoadingSkeleton = () => (
+    <section className="animate-fade-in-up bg-white rounded-3xl shadow-xl border border-slate-100 p-8 space-y-8">
+      {/* Skeleton de imagen principal */}
+      <div className="relative w-full h-64 md:h-80 rounded-2xl overflow-hidden bg-slate-200 animate-pulse"></div>
+      
+      {/* Layout Principal: Sidebar + Contenido */}
+      <div className="grid grid-cols-1 lg:grid-cols-4 gap-6">
+        {/* Panel Lateral (Sidebar) - Widgets Skeleton */}
+        <div className="lg:col-span-1 space-y-4">
+          <div className="bg-slate-200 rounded-xl p-6 h-32 animate-pulse"></div>
+          <div className="bg-slate-200 rounded-xl p-6 h-24 animate-pulse"></div>
+        </div>
+        
+        {/* Panel Central - Plan de Viaje Skeleton */}
+        <div className="lg:col-span-3">
+          <div className="bg-white rounded-2xl shadow-lg border border-slate-100 p-6 md:p-8 space-y-4">
+            <div className="h-8 bg-slate-200 rounded animate-pulse w-1/3"></div>
+            <div className="space-y-3">
+              <div className="h-4 bg-slate-200 rounded animate-pulse"></div>
+              <div className="h-4 bg-slate-200 rounded animate-pulse w-5/6"></div>
+              <div className="h-4 bg-slate-200 rounded animate-pulse w-4/6"></div>
+              <div className="h-4 bg-slate-200 rounded animate-pulse w-full"></div>
+              <div className="h-4 bg-slate-200 rounded animate-pulse w-3/4"></div>
+            </div>
+            <div className="space-y-3 mt-6">
+              <div className="h-4 bg-slate-200 rounded animate-pulse"></div>
+              <div className="h-4 bg-slate-200 rounded animate-pulse w-5/6"></div>
+              <div className="h-4 bg-slate-200 rounded animate-pulse w-4/6"></div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+  );
+
   return (
     <div className="min-h-screen bg-slate-50 font-sans">
+      {/* Toaster para feedback visual */}
+      <Toaster position="top-center" richColors />
+      
       {/* Contenedor Principal Centrado */}
       <div className="max-w-5xl mx-auto px-4 py-12">
         
@@ -752,8 +816,11 @@ const TravelPlanner = () => {
           </div>
         )}
 
+        {/* Skeleton Loader durante la carga */}
+        {loading && !travelData && <LoadingSkeleton />}
+
         {/* Resultados (El Plan): Tarjeta separada con animación */}
-        {travelData && (
+        {travelData && !loading && (
           <section className="animate-fade-in-up bg-white rounded-3xl shadow-xl border border-slate-100 p-8 space-y-8">
             
             {/* Header del Plan con Botones de Acción */}
@@ -998,7 +1065,7 @@ const TravelPlanner = () => {
                   </div>
                 )}
                 {/* Elemento invisible para scroll automático */}
-                <div ref={chatEndRef} />
+                <div ref={messagesEndRef} />
               </div>
 
               {/* Input de Chat */}
@@ -1061,7 +1128,7 @@ const TravelPlanner = () => {
             
             <button
               onClick={() => {
-                alert('¡Gracias por tu interés! Te notificaremos cuando ViajeIA PRO esté disponible. 🎉');
+                toast.success('¡Gracias por tu interés! Te notificaremos cuando ViajeIA PRO esté disponible. 🎉');
               }}
               className="px-6 py-3 
                          bg-gradient-to-r from-amber-500 to-yellow-500 
