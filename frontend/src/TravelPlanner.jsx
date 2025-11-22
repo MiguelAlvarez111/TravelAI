@@ -644,7 +644,7 @@ const TravelPlanner = () => {
 
   // Componente LoadingSkeleton para carga percibida
   const LoadingSkeleton = () => (
-    <section className="animate-fade-in-up bg-white rounded-3xl shadow-xl border border-slate-100 p-8 space-y-8">
+    <section className="animate-fade-in-up bg-white rounded-[2rem] shadow-sm hover:shadow-md transition-shadow p-10 space-y-8">
       {/* Skeleton de imagen principal */}
       <div className="relative w-full h-64 md:h-80 rounded-2xl overflow-hidden bg-slate-200 animate-pulse"></div>
       
@@ -652,13 +652,13 @@ const TravelPlanner = () => {
       <div className="grid grid-cols-1 lg:grid-cols-4 gap-6">
         {/* Panel Lateral (Sidebar) - Widgets Skeleton */}
         <div className="lg:col-span-1 space-y-4">
-          <div className="bg-slate-200 rounded-xl p-6 h-32 animate-pulse"></div>
-          <div className="bg-slate-200 rounded-xl p-6 h-24 animate-pulse"></div>
+          <div className="bg-slate-200 rounded-[2rem] p-6 h-32 animate-pulse"></div>
+          <div className="bg-slate-200 rounded-[2rem] p-6 h-24 animate-pulse"></div>
         </div>
         
         {/* Panel Central - Plan de Viaje Skeleton */}
         <div className="lg:col-span-3">
-          <div className="bg-white rounded-2xl shadow-lg border border-slate-100 p-6 md:p-8 space-y-4">
+          <div className="bg-white rounded-[2rem] shadow-sm p-8 space-y-4">
             <div className="h-8 bg-slate-200 rounded animate-pulse w-1/3"></div>
             <div className="space-y-3">
               <div className="h-4 bg-slate-200 rounded animate-pulse"></div>
@@ -679,161 +679,172 @@ const TravelPlanner = () => {
   );
 
   return (
-    <div className="min-h-screen bg-slate-50 font-sans">
+    <div className="min-h-screen bg-[#F5F5F7] font-sans">
       {/* Toaster para feedback visual */}
       <Toaster position="top-center" richColors />
       
-      {/* Contenedor Principal Centrado */}
-      <div className="max-w-5xl mx-auto px-4 py-12">
-        
-        {/* Header & Navegación: Flexbox limpio con gradiente y avatar */}
-        <header className="mb-10">
+      {/* Header Sticky - Estilo Apple */}
+      <header className="sticky top-0 z-40 bg-white/80 backdrop-blur-md border-b border-slate-200/50">
+        <div className="max-w-5xl mx-auto px-4 py-4">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-3">
-              <Plane className="w-7 h-7 text-blue-600" />
-              <h1 className="text-4xl font-extrabold tracking-tight bg-clip-text text-transparent bg-gradient-to-r from-blue-600 to-indigo-600">
+              <Plane className="w-7 h-7 text-slate-900" />
+              <h1 className="text-3xl font-semibold tracking-tight text-slate-900">
                 ViajeIA
               </h1>
             </div>
             <div className="flex items-center gap-3">
               {user && (
                 <div className="flex items-center gap-2">
-                  <div className="w-9 h-9 rounded-full bg-gradient-to-br from-blue-500 to-indigo-600 flex items-center justify-center text-white text-sm font-semibold shadow-md">
+                  <div className="w-9 h-9 rounded-full bg-slate-900 flex items-center justify-center text-white text-sm font-semibold">
                     {getUserInitials()}
                   </div>
-                  <span className="text-sm text-slate-600 hidden sm:inline">
+                  <span className="text-sm text-slate-600 hidden sm:inline font-medium">
                     {user.displayName || user.email?.split('@')[0]}
                   </span>
                 </div>
               )}
               <button
                 onClick={handleLogout}
-                className="p-2 rounded-lg text-slate-500 hover:bg-slate-100 hover:text-slate-700 transition-all duration-200"
+                className="p-2 rounded-full text-slate-400 hover:bg-slate-100 hover:text-slate-700 transition-all duration-200"
                 title="Cerrar Sesión"
               >
                 <LogOut className="w-5 h-5" />
               </button>
             </div>
           </div>
-        </header>
+        </div>
+      </header>
+      
+      {/* Contenedor Principal Centrado */}
+      <div className="max-w-5xl mx-auto px-4 py-12">
 
-        {/* Tarjeta de Entrada (Hero Section): Glassmorphism Clean */}
-        <section className="bg-white rounded-3xl shadow-xl border border-slate-100 p-8 mb-8">
-          <h2 className="text-2xl font-extrabold tracking-tight text-slate-900 mb-6">Planifica tu Aventura</h2>
+        {/* Tarjeta de Entrada (Hero Section): Estilo Apple */}
+        <section className="bg-white rounded-[2rem] shadow-sm hover:shadow-md transition-shadow p-10 mb-8">
+          <h2 className="text-3xl font-semibold tracking-tight text-slate-900 mb-8">Planifica tu Aventura</h2>
           
           {/* Formulario con Grid */}
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-8">
             
             {/* Campo: Destino (Full Width) */}
             <div className="md:col-span-2">
-              <label htmlFor="destination" className="block text-sm font-semibold text-slate-700 mb-2">
+              <label htmlFor="destination" className="block text-xs font-bold text-slate-400 uppercase tracking-wider mb-2">
                 Destino
               </label>
-              <input
-                type="text"
-                id="destination"
-                name="destination"
-                value={formData.destination}
-                onChange={handleInputChange}
-                placeholder="¿París, Bali, Nueva York?"
-                disabled={loading}
-                className="w-full px-4 py-3 
-                           bg-white border border-slate-200 rounded-xl
-                           focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500
-                           disabled:bg-slate-50 disabled:cursor-not-allowed
-                           text-slate-800 placeholder-slate-400
-                           transition-all duration-200"
-              />
+              <div className="relative">
+                <Plane className="absolute left-4 top-1/2 transform -translate-y-1/2 w-5 h-5 text-slate-400" />
+                <input
+                  type="text"
+                  id="destination"
+                  name="destination"
+                  value={formData.destination}
+                  onChange={handleInputChange}
+                  placeholder="¿París, Bali, Nueva York?"
+                  disabled={loading}
+                  className="w-full pl-12 pr-5 py-4 
+                             bg-[#F5F5F7] border-transparent rounded-xl
+                             focus:outline-none focus:bg-white focus:ring-2 focus:ring-blue-500/20
+                             disabled:bg-slate-100 disabled:cursor-not-allowed
+                             text-lg text-slate-900 placeholder-slate-400
+                             transition-all duration-300"
+                />
+              </div>
             </div>
 
             {/* Campo: Fechas */}
             <div>
-              <label htmlFor="date" className="block text-sm font-semibold text-slate-700 mb-2">
+              <label htmlFor="date" className="block text-xs font-bold text-slate-400 uppercase tracking-wider mb-2">
                 ¿Cuándo viajas?
               </label>
-              <input
-                type="date"
-                id="date"
-                name="date"
-                value={formData.date}
-                onChange={handleInputChange}
-                disabled={loading}
-                min={new Date().toISOString().split('T')[0]}
-                className="w-full px-4 py-3 
-                           bg-white border border-slate-200 rounded-xl
-                           focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500
-                           disabled:bg-slate-50 disabled:cursor-not-allowed
-                           text-slate-800
-                           transition-all duration-200"
-              />
+              <div className="relative">
+                <Clock className="absolute left-4 top-1/2 transform -translate-y-1/2 w-5 h-5 text-slate-400" />
+                <input
+                  type="date"
+                  id="date"
+                  name="date"
+                  value={formData.date}
+                  onChange={handleInputChange}
+                  disabled={loading}
+                  min={new Date().toISOString().split('T')[0]}
+                  className="w-full pl-12 pr-5 py-4 
+                             bg-[#F5F5F7] border-transparent rounded-xl
+                             focus:outline-none focus:bg-white focus:ring-2 focus:ring-blue-500/20
+                             disabled:bg-slate-100 disabled:cursor-not-allowed
+                             text-lg text-slate-900
+                             transition-all duration-300"
+                />
+              </div>
             </div>
 
             {/* Campo: Presupuesto */}
             <div>
-              <label htmlFor="budget" className="block text-sm font-semibold text-slate-700 mb-2">
+              <label htmlFor="budget" className="block text-xs font-bold text-slate-400 uppercase tracking-wider mb-2">
                 Presupuesto
               </label>
-              <select
-                id="budget"
-                name="budget"
-                value={formData.budget}
-                onChange={handleInputChange}
-                disabled={loading}
-                className="w-full px-4 py-3 
-                           bg-white border border-slate-200 rounded-xl
-                           focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500
-                           disabled:bg-slate-50 disabled:cursor-not-allowed
-                           text-slate-800
-                           transition-all duration-200"
-              >
-                <option value="">Selecciona tu presupuesto</option>
-                <option value="Mochilero 🎒">Mochilero 🎒</option>
-                <option value="Moderado ⚖️">Moderado ⚖️</option>
-                <option value="Lujo ✨">Lujo ✨</option>
-              </select>
+              <div className="relative">
+                <select
+                  id="budget"
+                  name="budget"
+                  value={formData.budget}
+                  onChange={handleInputChange}
+                  disabled={loading}
+                  className="w-full pl-5 pr-5 py-4 
+                             bg-[#F5F5F7] border-transparent rounded-xl
+                             focus:outline-none focus:bg-white focus:ring-2 focus:ring-blue-500/20
+                             disabled:bg-slate-100 disabled:cursor-not-allowed
+                             text-lg text-slate-900
+                             transition-all duration-300 appearance-none cursor-pointer"
+                >
+                  <option value="">Selecciona tu presupuesto</option>
+                  <option value="Mochilero 🎒">Mochilero 🎒</option>
+                  <option value="Moderado ⚖️">Moderado ⚖️</option>
+                  <option value="Lujo ✨">Lujo ✨</option>
+                </select>
+              </div>
             </div>
 
             {/* Campo: Estilo de Viaje */}
             <div>
-              <label htmlFor="style" className="block text-sm font-semibold text-slate-700 mb-2">
+              <label htmlFor="style" className="block text-xs font-bold text-slate-400 uppercase tracking-wider mb-2">
                 Estilo de Viaje
               </label>
-              <select
-                id="style"
-                name="style"
-                value={formData.style}
-                onChange={handleInputChange}
-                disabled={loading}
-                className="w-full px-4 py-3 
-                           bg-white border border-slate-200 rounded-xl
-                           focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500
-                           disabled:bg-slate-50 disabled:cursor-not-allowed
-                           text-slate-800
-                           transition-all duration-200"
-              >
-                <option value="">Selecciona tu estilo</option>
-                <option value="Aventura 🧗">Aventura 🧗</option>
-                <option value="Relax 🏖️">Relax 🏖️</option>
-                <option value="Cultura 🏛️">Cultura 🏛️</option>
-                <option value="Gastronomía 🌮">Gastronomía 🌮</option>
-              </select>
+              <div className="relative">
+                <select
+                  id="style"
+                  name="style"
+                  value={formData.style}
+                  onChange={handleInputChange}
+                  disabled={loading}
+                  className="w-full pl-5 pr-5 py-4 
+                             bg-[#F5F5F7] border-transparent rounded-xl
+                             focus:outline-none focus:bg-white focus:ring-2 focus:ring-blue-500/20
+                             disabled:bg-slate-100 disabled:cursor-not-allowed
+                             text-lg text-slate-900
+                             transition-all duration-300 appearance-none cursor-pointer"
+                >
+                  <option value="">Selecciona tu estilo</option>
+                  <option value="Aventura 🧗">Aventura 🧗</option>
+                  <option value="Relax 🏖️">Relax 🏖️</option>
+                  <option value="Cultura 🏛️">Cultura 🏛️</option>
+                  <option value="Gastronomía 🌮">Gastronomía 🌮</option>
+                </select>
+              </div>
             </div>
 
           </div>
 
-          {/* Botón Principal: Grande, gradiente azul vibrante, sombra de color */}
+          {/* Botón Principal: Estilo Apple */}
           <button
             onClick={handlePlanificar}
             disabled={loading || !formData.destination.trim()}
             className="w-full md:w-auto md:min-w-[280px] flex items-center justify-center gap-3
-                       bg-gradient-to-r from-blue-600 to-indigo-600 
-                       hover:from-blue-700 hover:to-indigo-700
-                       disabled:from-slate-300 disabled:to-slate-300
-                       text-white font-semibold py-4 px-8 rounded-xl
-                       shadow-lg shadow-blue-500/30 hover:shadow-xl hover:shadow-blue-500/40
-                       transition-all duration-300
+                       bg-black text-white
+                       hover:bg-slate-800
+                       disabled:bg-slate-300 disabled:text-slate-500
+                       font-semibold py-4 px-8 rounded-full
+                       transition-colors duration-300
                        disabled:cursor-not-allowed
-                       transform hover:scale-[1.01] active:scale-95 disabled:transform-none"
+                       active:scale-95 transition-transform"
           >
             {loading ? (
               <>
@@ -851,8 +862,8 @@ const TravelPlanner = () => {
 
         {/* Mensaje de Error */}
         {error && (
-          <div className="mb-8 p-5 bg-red-50 border-l-4 border-red-500 rounded-xl
-                          flex items-start gap-3 shadow-md">
+          <div className="mb-8 p-5 bg-red-50 border-l-4 border-red-500 rounded-2xl
+                          flex items-start gap-3">
             <AlertCircle className="w-6 h-6 text-red-600 flex-shrink-0 mt-0.5" />
             <div className="flex-1">
               <p className="text-red-800 font-semibold mb-1">Error de conexión</p>
@@ -866,19 +877,19 @@ const TravelPlanner = () => {
 
         {/* Resultados (El Plan): Tarjeta separada con animación */}
         {travelData && !loading && (
-          <section className="animate-fade-in-up bg-white rounded-3xl shadow-xl border border-slate-100 p-8 space-y-8">
+          <section className="animate-fade-in-up bg-white rounded-[2rem] shadow-sm hover:shadow-md transition-shadow p-10 space-y-8">
             
             {/* Header del Plan con Botones de Acción */}
             <div className="flex items-center justify-between flex-wrap gap-4">
-              <h2 className="text-2xl font-extrabold tracking-tight text-slate-900">Tu Plan</h2>
+              <h2 className="text-3xl font-semibold tracking-tight text-slate-900">Tu Plan</h2>
               <div className="flex items-center gap-2">
                 {travelData && (
                   <button
                     onClick={handleToggleFavorite}
-                    className={`p-2.5 rounded-xl transition-all duration-200 border ${
+                    className={`p-2.5 rounded-full transition-all duration-200 ${
                       isFavorited
-                        ? 'bg-red-50 text-red-600 border-red-200 hover:bg-red-100'
-                        : 'bg-white text-slate-600 border-slate-200 hover:bg-slate-50'
+                        ? 'bg-red-50 text-red-600 hover:bg-red-100'
+                        : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
                     }`}
                     title={isFavorited ? 'Quitar de favoritos' : 'Agregar a favoritos'}
                   >
@@ -887,7 +898,7 @@ const TravelPlanner = () => {
                 )}
                 <button
                   onClick={() => setShowFavorites(true)}
-                  className="p-2.5 rounded-xl bg-white text-slate-600 border border-slate-200 hover:bg-slate-50 transition-all duration-200"
+                  className="p-2.5 rounded-full bg-slate-100 text-slate-600 hover:bg-slate-200 transition-all duration-200"
                   title="Mis Viajes Guardados"
                 >
                   <BookOpen className="w-5 h-5" />
@@ -895,7 +906,7 @@ const TravelPlanner = () => {
                 {travelData && (
                   <button
                     onClick={handleExportPDF}
-                    className="p-2.5 rounded-xl bg-white text-blue-600 border border-blue-200 hover:bg-blue-50 transition-all duration-200"
+                    className="p-2.5 rounded-full bg-[#007AFF] text-white hover:bg-[#0051D5] transition-all duration-200"
                     title="Descargar PDF"
                   >
                     <Download className="w-5 h-5" />
@@ -907,7 +918,7 @@ const TravelPlanner = () => {
             {/* Header del Plan: Imagen de fondo con overlay oscuro */}
             {travelData.images && travelData.images.length > 0 && (
               <div 
-                className="relative w-full h-64 md:h-80 rounded-2xl overflow-hidden shadow-2xl cursor-pointer"
+                className="relative w-full h-64 md:h-80 rounded-[2rem] overflow-hidden shadow-sm hover:shadow-md transition-shadow cursor-pointer"
                 onClick={() => setLightboxImage(travelData.images[0])}
               >
                 <img 
@@ -917,7 +928,7 @@ const TravelPlanner = () => {
                 />
                 <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/40 to-transparent"></div>
                 <div className="absolute bottom-0 left-0 right-0 p-6 md:p-8">
-                  <h3 className="text-3xl md:text-4xl font-extrabold tracking-tight text-white mb-2">
+                  <h3 className="text-3xl md:text-4xl font-semibold tracking-tight text-white mb-2">
                     {formData.destination}
                   </h3>
                   {travelData.weather && (
@@ -937,20 +948,20 @@ const TravelPlanner = () => {
                 
                 {/* Widget: Clima */}
                 {travelData.weather && travelData.weather.temp !== null && (
-                  <div className="bg-gradient-to-br from-blue-500 to-blue-600 rounded-xl p-6 shadow-lg text-white">
+                  <div className="bg-white rounded-[2rem] shadow-sm hover:shadow-md transition-shadow p-6">
                     <div className="flex items-center gap-3 mb-4">
-                      <Cloud className="w-6 h-6" />
-                      <h3 className="font-semibold text-lg">Clima Actual</h3>
+                      <Cloud className="w-6 h-6 text-slate-400" />
+                      <h3 className="font-semibold text-lg text-slate-900">Clima Actual</h3>
                     </div>
                     <div className="flex items-baseline gap-2 mb-2">
-                      <span className="text-4xl font-bold">{travelData.weather.temp}°</span>
-                      <span className="text-xl text-blue-100">C</span>
+                      <span className="text-4xl font-bold text-slate-900">{travelData.weather.temp}°</span>
+                      <span className="text-xl text-slate-500">C</span>
                     </div>
                     {travelData.weather.condition && (
-                      <p className="text-blue-100 mb-3">{travelData.weather.condition}</p>
+                      <p className="text-slate-500 mb-3 font-medium">{travelData.weather.condition}</p>
                     )}
                     {travelData.weather.feels_like && (
-                      <div className="flex items-center gap-2 text-blue-100 text-sm">
+                      <div className="flex items-center gap-2 text-slate-500 text-sm">
                         <Thermometer className="w-4 h-4" />
                         <span>Sensación: {travelData.weather.feels_like}°C</span>
                       </div>
@@ -960,12 +971,12 @@ const TravelPlanner = () => {
 
                 {/* Widget: Hora Local */}
                 {travelData.info && travelData.info.local_time && (
-                  <div className="bg-gradient-to-br from-indigo-500 to-indigo-600 rounded-xl p-6 shadow-lg text-white">
+                  <div className="bg-white rounded-[2rem] shadow-sm hover:shadow-md transition-shadow p-6">
                     <div className="flex items-center gap-3 mb-4">
-                      <Clock className="w-6 h-6" />
-                      <h3 className="font-semibold text-lg">Hora Local</h3>
+                      <Clock className="w-6 h-6 text-slate-400" />
+                      <h3 className="font-semibold text-lg text-slate-900">Hora Local</h3>
                     </div>
-                    <div className="text-3xl font-bold">{travelData.info.local_time}</div>
+                    <div className="text-3xl font-bold text-slate-900">{travelData.info.local_time}</div>
                   </div>
                 )}
 
@@ -973,12 +984,12 @@ const TravelPlanner = () => {
 
               {/* Panel Central - Plan de Viaje */}
               <div className="lg:col-span-3">
-                <div className="bg-white rounded-2xl shadow-lg border border-slate-100 p-6 md:p-8">
-                  <div className="flex items-center gap-3 mb-6 pb-4 border-b border-slate-200">
-                    <div className="p-2 bg-blue-100 rounded-lg">
-                      <Plane className="w-5 h-5 text-blue-600" />
+                <div className="bg-white rounded-[2rem] shadow-sm hover:shadow-md transition-shadow p-8">
+                  <div className="flex items-center gap-3 mb-6 pb-4 border-b border-slate-200/50">
+                    <div className="p-2 bg-slate-100 rounded-xl">
+                      <Plane className="w-5 h-5 text-slate-400" />
                     </div>
-                    <h2 className="text-2xl font-extrabold tracking-tight text-slate-900">
+                    <h2 className="text-2xl font-semibold tracking-tight text-slate-900">
                       Tu Plan de Viaje por Alex
                     </h2>
                   </div>
@@ -1006,19 +1017,19 @@ const TravelPlanner = () => {
 
             {/* Grid de Galería: grid-cols-1 md:grid-cols-3 gap-4 */}
             {travelData.images && travelData.images.length > 1 && (
-              <div className="bg-slate-50 rounded-2xl p-6">
-                <h3 className="text-xl font-extrabold tracking-tight text-slate-900 mb-4">Galería de Imágenes</h3>
+              <div className="bg-white rounded-[2rem] shadow-sm hover:shadow-md transition-shadow p-8">
+                <h3 className="text-xl font-semibold tracking-tight text-slate-900 mb-6">Galería de Imágenes</h3>
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                   {travelData.images.slice(1).map((imageUrl, index) => (
                     <div 
                       key={index}
-                      className="relative rounded-xl overflow-hidden shadow-md hover:shadow-xl transition-all duration-300 group cursor-pointer"
+                      className="relative rounded-2xl overflow-hidden shadow-sm hover:shadow-md transition-all duration-300 group cursor-pointer"
                       onClick={() => setLightboxImage(imageUrl)}
                     >
                       <img 
                         src={imageUrl} 
                         alt={`${formData.destination} ${index + 2}`}
-                        className="w-full h-48 object-cover rounded-xl hover:scale-105 transition-transform duration-300"
+                        className="w-full h-48 object-cover rounded-2xl hover:scale-105 transition-transform duration-300"
                       />
                     </div>
                   ))}
@@ -1026,17 +1037,17 @@ const TravelPlanner = () => {
               </div>
             )}
 
-            {/* Interfaz de Chat Continuo */}
-            <div className="bg-white rounded-2xl shadow-lg border border-slate-100 p-6 flex flex-col">
-              <div className="flex items-center gap-3 mb-4 pb-4 border-b border-slate-200">
-                <MessageCircle className="w-5 h-5 text-blue-600" />
-                <h3 className="text-xl font-extrabold tracking-tight text-slate-900">Chat con Alex</h3>
+            {/* Interfaz de Chat Continuo - Estilo iMessage */}
+            <div className="bg-white rounded-[2rem] shadow-sm hover:shadow-md transition-shadow p-8 flex flex-col">
+              <div className="flex items-center gap-3 mb-6 pb-4 border-b border-slate-200/50">
+                <MessageCircle className="w-5 h-5 text-slate-400" />
+                <h3 className="text-xl font-semibold tracking-tight text-slate-900">Chat con Alex</h3>
               </div>
 
               {/* Historial de Chat - Contenedor estabilizado con altura fija */}
               <div 
                 ref={chatContainerRef}
-                className="h-[400px] overflow-y-auto p-4 border border-slate-100 rounded-xl bg-white/50 mb-4 space-y-3"
+                className="h-[400px] overflow-y-auto p-4 bg-white rounded-xl mb-4 space-y-3"
                 style={{ scrollbarWidth: 'thin', msOverflowStyle: 'auto' }}
               >
                 <style>{`
@@ -1062,42 +1073,42 @@ const TravelPlanner = () => {
                   >
                     {/* Avatar para Alex (solo a la izquierda) */}
                     {msg.role === 'model' && (
-                      <div className="flex-shrink-0 w-8 h-8 rounded-full bg-gradient-to-br from-blue-500 to-blue-600 flex items-center justify-center shadow-sm">
-                        <Bot className="w-4 h-4 text-white" />
+                      <div className="flex-shrink-0 w-8 h-8 rounded-full bg-[#F5F5F7] flex items-center justify-center">
+                        <Bot className="w-4 h-4 text-slate-400" />
                       </div>
                     )}
                     
-                    {/* Burbuja de Mensaje */}
+                    {/* Burbuja de Mensaje - Estilo iMessage */}
                     <div
-                      className={`max-w-[75%] shadow-sm ${
+                      className={`max-w-[75%] ${
                         msg.role === 'user'
-                          ? 'bg-blue-600 text-white rounded-2xl rounded-br-none px-5 py-3'
-                          : 'bg-gray-100 text-gray-800 rounded-2xl rounded-bl-none px-5 py-3'
+                          ? 'bg-[#007AFF] text-white rounded-3xl rounded-br-md px-5 py-3'
+                          : 'bg-[#F5F5F7] text-slate-800 rounded-3xl rounded-bl-md px-5 py-3'
                       }`}
                     >
                       {/* Nombre del remitente */}
                       <div className={`text-xs font-semibold mb-1.5 ${
-                        msg.role === 'user' ? 'text-blue-100' : 'text-gray-500'
+                        msg.role === 'user' ? 'text-blue-100' : 'text-slate-500'
                       }`}>
                         {msg.role === 'user' ? 'Tú' : 'Alex'}
                       </div>
                       
                       {/* Contenido del mensaje */}
                       {msg.role === 'model' ? (
-                        <div className="text-sm leading-relaxed text-gray-800
-                          [&>h1]:text-xl [&>h1]:font-bold [&>h1]:text-gray-900 [&>h1]:mt-3 [&>h1]:mb-2 [&>h1]:pb-1 [&>h1]:border-b [&>h1]:border-gray-300
-                          [&>h2]:text-lg [&>h2]:font-bold [&>h2]:text-gray-900 [&>h2]:mt-3 [&>h2]:mb-2 [&>h2]:pb-1 [&>h2]:border-b [&>h2]:border-gray-300
-                          [&>h3]:text-base [&>h3]:font-bold [&>h3]:text-gray-900 [&>h3]:mt-2 [&>h3]:mb-1
-                          [&>p]:my-2 [&>p]:leading-relaxed [&>p]:text-gray-800
-                          [&>strong]:text-gray-900 [&>strong]:font-semibold
-                          [&>em]:text-gray-700 [&>em]:italic
+                        <div className="text-sm leading-relaxed text-slate-800
+                          [&>h1]:text-xl [&>h1]:font-bold [&>h1]:text-slate-900 [&>h1]:mt-3 [&>h1]:mb-2 [&>h1]:pb-1 [&>h1]:border-b [&>h1]:border-slate-300
+                          [&>h2]:text-lg [&>h2]:font-bold [&>h2]:text-slate-900 [&>h2]:mt-3 [&>h2]:mb-2 [&>h2]:pb-1 [&>h2]:border-b [&>h2]:border-slate-300
+                          [&>h3]:text-base [&>h3]:font-bold [&>h3]:text-slate-900 [&>h3]:mt-2 [&>h3]:mb-1
+                          [&>p]:my-2 [&>p]:leading-relaxed [&>p]:text-slate-800
+                          [&>strong]:text-slate-900 [&>strong]:font-semibold
+                          [&>em]:text-slate-700 [&>em]:italic
                           [&>ul]:my-2 [&>ul]:pl-4 [&>ul]:list-disc [&>ul]:space-y-1
                           [&>ol]:my-2 [&>ol]:pl-4 [&>ol]:list-decimal [&>ol]:space-y-1
-                          [&>li]:leading-relaxed [&>li]:text-gray-800
-                          [&>a]:text-blue-600 [&>a]:no-underline [&>a]:font-medium hover:[&>a]:underline
-                          [&>code]:text-blue-700 [&>code]:bg-blue-50 [&>code]:px-1.5 [&>code]:py-0.5 [&>code]:rounded [&>code]:text-xs [&>code]:font-mono
-                          [&>blockquote]:border-l-4 [&>blockquote]:border-blue-300 [&>blockquote]:pl-3 [&>blockquote]:italic [&>blockquote]:text-gray-600 [&>blockquote]:my-2
-                          [&>hr]:border-gray-300 [&>hr]:my-3">
+                          [&>li]:leading-relaxed [&>li]:text-slate-800
+                          [&>a]:text-[#007AFF] [&>a]:no-underline [&>a]:font-medium hover:[&>a]:underline
+                          [&>code]:text-[#007AFF] [&>code]:bg-blue-50 [&>code]:px-1.5 [&>code]:py-0.5 [&>code]:rounded [&>code]:text-xs [&>code]:font-mono
+                          [&>blockquote]:border-l-4 [&>blockquote]:border-blue-300 [&>blockquote]:pl-3 [&>blockquote]:italic [&>blockquote]:text-slate-600 [&>blockquote]:my-2
+                          [&>hr]:border-slate-300 [&>hr]:my-3">
                           <ReactMarkdown>{msg.parts}</ReactMarkdown>
                         </div>
                       ) : (
@@ -1109,7 +1120,7 @@ const TravelPlanner = () => {
                     
                     {/* Avatar para Usuario (solo a la derecha) */}
                     {msg.role === 'user' && (
-                      <div className="flex-shrink-0 w-8 h-8 rounded-full bg-gradient-to-br from-gray-400 to-gray-500 flex items-center justify-center shadow-sm">
+                      <div className="flex-shrink-0 w-8 h-8 rounded-full bg-slate-300 flex items-center justify-center">
                         <User className="w-4 h-4 text-white" />
                       </div>
                     )}
@@ -1117,11 +1128,11 @@ const TravelPlanner = () => {
                 ))}
                 {chatLoading && (
                   <div className="flex items-end gap-2 justify-start">
-                    <div className="flex-shrink-0 w-8 h-8 rounded-full bg-gradient-to-br from-blue-500 to-blue-600 flex items-center justify-center shadow-sm">
-                      <Bot className="w-4 h-4 text-white" />
+                    <div className="flex-shrink-0 w-8 h-8 rounded-full bg-[#F5F5F7] flex items-center justify-center">
+                      <Bot className="w-4 h-4 text-slate-400" />
                     </div>
-                    <div className="bg-gray-100 text-gray-800 rounded-2xl rounded-bl-none px-5 py-3 shadow-sm">
-                      <Loader2 className="w-5 h-5 animate-spin text-blue-600" />
+                    <div className="bg-[#F5F5F7] text-slate-800 rounded-3xl rounded-bl-md px-5 py-3">
+                      <Loader2 className="w-5 h-5 animate-spin text-[#007AFF]" />
                     </div>
                   </div>
                 )}
@@ -1129,30 +1140,31 @@ const TravelPlanner = () => {
                 <div ref={messagesEndRef} />
               </div>
 
-              {/* Input de Chat - Sticky al final */}
-              <div className="flex gap-2 mt-auto pt-4 border-t border-slate-200">
+              {/* Input de Chat - Estilo iMessage (redondeado completo) */}
+              <div className="flex gap-2 mt-auto pt-4 border-t border-slate-200/50">
                 <input
                   type="text"
                   value={chatMessage}
                   onChange={(e) => setChatMessage(e.target.value)}
                   onKeyPress={(e) => e.key === 'Enter' && !chatLoading && handleChatSend()}
-                  placeholder="Pregunta algo sobre tu viaje... (ej: ¿Es seguro? ¿Qué más puedo hacer?)"
+                  placeholder="Pregunta algo sobre tu viaje..."
                   disabled={chatLoading}
-                  className="flex-1 px-4 py-3 
-                             bg-white border border-slate-200 rounded-xl
-                             focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500
-                             disabled:bg-slate-50 disabled:cursor-not-allowed
-                             text-slate-800 placeholder-slate-400
-                             transition-all duration-200"
+                  className="flex-1 px-5 py-3 
+                             bg-[#F5F5F7] border-transparent rounded-full
+                             focus:outline-none focus:bg-white focus:ring-2 focus:ring-blue-500/20
+                             disabled:bg-slate-100 disabled:cursor-not-allowed
+                             text-lg text-slate-900 placeholder-slate-400
+                             transition-all duration-300"
                 />
                 <button
                   onClick={handleChatSend}
                   disabled={chatLoading || !chatMessage.trim()}
-                  className="px-6 py-3 
-                             bg-blue-600 text-white rounded-xl
-                             hover:bg-blue-700 disabled:bg-slate-300 disabled:cursor-not-allowed
-                             transition-all duration-200
-                             flex items-center gap-2"
+                  className="w-12 h-12 
+                             bg-[#007AFF] text-white rounded-full
+                             hover:bg-[#0051D5] disabled:bg-slate-300 disabled:cursor-not-allowed
+                             transition-all duration-300
+                             flex items-center justify-center
+                             active:scale-95 transition-transform"
                 >
                   {chatLoading ? (
                     <Loader2 className="w-5 h-5 animate-spin" />
@@ -1167,49 +1179,42 @@ const TravelPlanner = () => {
         )}
 
         {/* Sección ViajeIA Pro: Footer Premium */}
-        <footer className="mt-8 bg-gradient-to-br from-slate-800 to-slate-900 rounded-3xl border-2 border-amber-500/30 shadow-xl p-8 md:p-10 relative overflow-hidden">
-          {/* Decoración de fondo */}
-          <div className="absolute top-0 right-0 w-32 h-32 bg-gradient-to-br from-amber-500/20 to-yellow-500/20 rounded-full blur-3xl"></div>
-          <div className="absolute bottom-0 left-0 w-24 h-24 bg-gradient-to-tr from-yellow-500/20 to-amber-500/20 rounded-full blur-2xl"></div>
-          
-          <div className="relative z-10">
-            <div className="flex items-center gap-3 mb-4">
-              <span className="text-4xl">👑</span>
-              <h3 className="text-3xl font-bold text-white">ViajeIA PRO</h3>
-            </div>
-            
-            <p className="text-lg text-slate-200 mb-6 leading-relaxed">
-              Próximamente: Reservas directas, Alertas de precios y Guías offline.
-            </p>
-            
-            <p className="text-sm text-slate-300 mb-6">
-              Accede a funcionalidades premium que harán tu experiencia de viaje aún mejor. 
-              Únete a nuestra lista de espera para ser de los primeros en conocerlas.
-            </p>
-            
-            <button
-              onClick={() => {
-                toast.success('¡Gracias por tu interés! Te notificaremos cuando ViajeIA PRO esté disponible. 🎉');
-              }}
-              className="px-6 py-3 
-                         bg-gradient-to-r from-amber-500 to-yellow-500 
-                         hover:from-amber-600 hover:to-yellow-600
-                         text-white font-semibold rounded-xl
-                         shadow-lg hover:shadow-xl
-                         transition-all duration-300
-                         transform hover:scale-105 active:scale-95
-                         flex items-center gap-2"
-            >
-              <span>Unirse a la lista de espera</span>
-              <span className="text-lg">→</span>
-            </button>
+        <footer className="mt-8 bg-white rounded-[2rem] shadow-sm hover:shadow-md transition-shadow p-10">
+          <div className="flex items-center gap-3 mb-4">
+            <span className="text-4xl">👑</span>
+            <h3 className="text-3xl font-semibold tracking-tight text-slate-900">ViajeIA PRO</h3>
           </div>
+          
+          <p className="text-lg text-slate-500 mb-6 leading-relaxed font-medium">
+            Próximamente: Reservas directas, Alertas de precios y Guías offline.
+          </p>
+          
+          <p className="text-sm text-slate-400 mb-6">
+            Accede a funcionalidades premium que harán tu experiencia de viaje aún mejor. 
+            Únete a nuestra lista de espera para ser de los primeros en conocerlas.
+          </p>
+          
+          <button
+            onClick={() => {
+              toast.success('¡Gracias por tu interés! Te notificaremos cuando ViajeIA PRO esté disponible. 🎉');
+            }}
+            className="px-6 py-3 
+                       bg-black text-white
+                       hover:bg-slate-800
+                       font-semibold rounded-full
+                       transition-colors duration-300
+                       active:scale-95 transition-transform
+                       flex items-center gap-2"
+          >
+            <span>Unirse a la lista de espera</span>
+            <span className="text-lg">→</span>
+          </button>
         </footer>
 
         {/* Footer con métricas */}
         <div className="mt-8 text-center space-y-2">
           <p className="text-sm text-slate-500 font-medium">
-            Powered by <span className="text-blue-600 font-semibold">Google Gemini AI</span> ✨
+            Powered by <span className="text-slate-900 font-semibold">Google Gemini AI</span> ✨
           </p>
           {stats.total_plans_generated > 0 && (
             <p className="text-sm text-slate-400 font-medium">
@@ -1223,17 +1228,17 @@ const TravelPlanner = () => {
       {/* Modal de Favoritos */}
       {showFavorites && (
         <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-2xl shadow-2xl max-w-2xl w-full max-h-[80vh] overflow-hidden flex flex-col">
-            <div className="flex items-center justify-between p-6 border-b border-slate-200">
-              <h2 className="text-2xl font-bold text-slate-800 flex items-center gap-2">
-                <BookOpen className="w-6 h-6 text-blue-600" />
+          <div className="bg-white rounded-[2rem] shadow-2xl max-w-2xl w-full max-h-[80vh] overflow-hidden flex flex-col">
+            <div className="flex items-center justify-between p-6 border-b border-slate-200/50">
+              <h2 className="text-2xl font-semibold tracking-tight text-slate-900 flex items-center gap-2">
+                <BookOpen className="w-6 h-6 text-slate-400" />
                 Mis Viajes Guardados
               </h2>
               <button
                 onClick={() => setShowFavorites(false)}
-                className="p-2 hover:bg-slate-100 rounded-lg transition-colors"
+                className="p-2 hover:bg-slate-100 rounded-full transition-colors"
               >
-                <X className="w-5 h-5 text-slate-600" />
+                <X className="w-5 h-5 text-slate-400" />
               </button>
             </div>
             
@@ -1241,28 +1246,28 @@ const TravelPlanner = () => {
               {favorites.length === 0 ? (
                 <div className="text-center py-12 text-slate-500">
                   <BookOpen className="w-16 h-16 mx-auto mb-4 text-slate-300" />
-                  <p className="text-lg">No tienes viajes guardados aún</p>
-                  <p className="text-sm mt-2">Planifica un viaje y guárdalo para accederlo después</p>
+                  <p className="text-lg font-medium">No tienes viajes guardados aún</p>
+                  <p className="text-sm mt-2 text-slate-400">Planifica un viaje y guárdalo para accederlo después</p>
                 </div>
               ) : (
                 <div className="space-y-4">
                   {favorites.map((fav, index) => (
                     <div
                       key={index}
-                      className="border border-slate-200 rounded-xl p-4 hover:shadow-md transition-shadow"
+                      className="border border-slate-200/50 rounded-2xl p-4 hover:shadow-md transition-shadow bg-white"
                     >
                       <div className="flex items-start justify-between">
                         <div className="flex-1">
-                          <h3 className="font-bold text-lg text-slate-800 mb-1">
+                          <h3 className="font-semibold text-lg text-slate-900 mb-1">
                             {fav.destination}
                           </h3>
-                          <div className="text-sm text-slate-600 space-y-1">
+                          <div className="text-sm text-slate-500 space-y-1">
                             {fav.date && <p>📅 {fav.date}</p>}
                             {fav.budget && <p>💰 {fav.budget}</p>}
                             {fav.style && <p>🎯 {fav.style}</p>}
                           </div>
                           {fav.summary && (
-                            <p className="text-sm text-slate-500 mt-2 line-clamp-2">
+                            <p className="text-sm text-slate-400 mt-2 line-clamp-2">
                               {fav.summary}
                             </p>
                           )}
@@ -1270,13 +1275,13 @@ const TravelPlanner = () => {
                         <div className="flex gap-2 ml-4">
                           <button
                             onClick={() => handleLoadFavorite(fav)}
-                            className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors text-sm"
+                            className="px-4 py-2 bg-[#007AFF] text-white rounded-full hover:bg-[#0051D5] transition-colors text-sm font-medium"
                           >
                             Cargar
                           </button>
                           <button
                             onClick={() => handleDeleteFavorite(index)}
-                            className="px-4 py-2 bg-red-100 text-red-600 rounded-lg hover:bg-red-200 transition-colors text-sm"
+                            className="px-4 py-2 bg-slate-100 text-slate-600 rounded-full hover:bg-slate-200 transition-colors text-sm font-medium"
                           >
                             Eliminar
                           </button>
@@ -1307,12 +1312,12 @@ const TravelPlanner = () => {
               onClick={() => setLightboxImage(null)}
               className="absolute top-4 right-4 z-10 w-12 h-12 bg-white/90 hover:bg-white rounded-full flex items-center justify-center shadow-lg transition-all duration-200 hover:scale-110"
             >
-              <X className="w-6 h-6 text-slate-800" />
+              <X className="w-6 h-6 text-slate-900" />
             </button>
             <img 
               src={lightboxImage} 
               alt="Vista ampliada"
-              className="max-w-full max-h-full object-contain rounded-lg shadow-2xl"
+              className="max-w-full max-h-full object-contain rounded-2xl shadow-2xl"
               onClick={(e) => e.stopPropagation()}
             />
           </div>

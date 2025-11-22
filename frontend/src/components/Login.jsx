@@ -49,20 +49,20 @@ const Login = ({ onSwitchToRegister }) => {
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-50 flex items-center justify-center py-12 px-4 sm:px-6 lg:px-8">
+    <div className="min-h-screen bg-[#F5F5F7] flex items-center justify-center py-12 px-4 sm:px-6 lg:px-8">
       <div className="max-w-md w-full">
-        {/* Glass Card Principal */}
-        <div className="bg-white/80 backdrop-blur-xl rounded-2xl shadow-xl border border-white/20 p-8 sm:p-10">
+        {/* Tarjeta Central */}
+        <div className="bg-white rounded-3xl shadow-2xl shadow-black/5 p-10">
           
           {/* Header */}
           <div className="text-center mb-8">
             <div className="flex items-center justify-center gap-3 mb-3">
-              <Plane className="w-9 h-9 text-blue-600 animate-pulse" />
-              <h1 className="text-4xl font-bold text-slate-800 tracking-tight">
+              <Plane className="w-9 h-9 text-slate-900" />
+              <h1 className="text-3xl font-semibold tracking-tight text-slate-900">
                 ViajeIA
               </h1>
             </div>
-            <p className="text-slate-600 text-lg mt-3 font-medium">
+            <p className="text-slate-500 font-medium mt-3">
               Inicia sesión para planificar tus aventuras
             </p>
           </div>
@@ -71,7 +71,7 @@ const Login = ({ onSwitchToRegister }) => {
           <form onSubmit={handleSubmit} className="space-y-6">
             {/* Campo Email */}
             <div>
-              <label htmlFor="email" className="block text-sm font-semibold text-slate-700 mb-3">
+              <label htmlFor="email" className="block text-xs font-bold text-slate-400 uppercase tracking-wider mb-2">
                 Email
               </label>
               <div className="relative">
@@ -84,19 +84,18 @@ const Login = ({ onSwitchToRegister }) => {
                   placeholder="tu@email.com"
                   disabled={loading}
                   className="w-full pl-12 pr-5 py-4 
-                             bg-white border border-slate-200 rounded-xl
-                             focus:outline-none focus:ring-4 focus:ring-blue-500/20 focus:border-blue-500
-                             disabled:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-60
-                             text-slate-800 placeholder-slate-400 placeholder:font-normal
-                             transition-all duration-300
-                             shadow-sm hover:shadow-md focus:shadow-lg"
+                             bg-slate-100 border-transparent rounded-xl
+                             focus:outline-none focus:bg-white focus:ring-2 focus:ring-blue-500/20
+                             disabled:bg-slate-100 disabled:cursor-not-allowed disabled:opacity-60
+                             text-lg text-slate-900 placeholder-slate-400
+                             transition-all duration-300"
                 />
               </div>
             </div>
 
             {/* Campo Contraseña */}
             <div>
-              <label htmlFor="password" className="block text-sm font-semibold text-slate-700 mb-3">
+              <label htmlFor="password" className="block text-xs font-bold text-slate-400 uppercase tracking-wider mb-2">
                 Contraseña
               </label>
               <div className="relative">
@@ -109,20 +108,19 @@ const Login = ({ onSwitchToRegister }) => {
                   placeholder="••••••••"
                   disabled={loading}
                   className="w-full pl-12 pr-5 py-4 
-                             bg-white border border-slate-200 rounded-xl
-                             focus:outline-none focus:ring-4 focus:ring-blue-500/20 focus:border-blue-500
-                             disabled:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-60
-                             text-slate-800 placeholder-slate-400 placeholder:font-normal
-                             transition-all duration-300
-                             shadow-sm hover:shadow-md focus:shadow-lg"
+                             bg-slate-100 border-transparent rounded-xl
+                             focus:outline-none focus:bg-white focus:ring-2 focus:ring-blue-500/20
+                             disabled:bg-slate-100 disabled:cursor-not-allowed disabled:opacity-60
+                             text-lg text-slate-900 placeholder-slate-400
+                             transition-all duration-300"
                 />
               </div>
             </div>
 
             {/* Mensaje de Error */}
             {error && (
-              <div className="p-4 bg-red-50/80 backdrop-blur-sm border-l-4 border-red-500 rounded-xl
-                            flex items-start gap-3 animate-in fade-in duration-300 shadow-md">
+              <div className="p-4 bg-red-50 border-l-4 border-red-500 rounded-xl
+                            flex items-start gap-3 animate-in fade-in duration-300">
                 <AlertCircle className="w-5 h-5 text-red-600 flex-shrink-0 mt-0.5" />
                 <p className="text-red-800 text-sm leading-relaxed">{error}</p>
               </div>
@@ -133,37 +131,32 @@ const Login = ({ onSwitchToRegister }) => {
               type="submit"
               disabled={loading}
               className="w-full flex items-center justify-center gap-3
-                         bg-gradient-to-r from-blue-600 to-blue-500 
-                         hover:from-blue-700 hover:to-blue-600
-                         disabled:from-slate-300 disabled:to-slate-300
-                         text-white font-semibold py-4 px-6 rounded-xl
-                         shadow-lg hover:shadow-xl disabled:shadow-none
-                         transition-all duration-300
+                         bg-black text-white
+                         hover:bg-slate-800
+                         disabled:bg-slate-300 disabled:text-slate-500
+                         font-semibold py-4 px-6 rounded-full
+                         transition-colors duration-300
                          disabled:cursor-not-allowed
-                         transform hover:scale-[1.02] active:scale-[0.98] disabled:transform-none
-                         relative overflow-hidden group"
+                         active:scale-95 transition-transform"
             >
-              <span className="relative z-10 flex items-center gap-3">
-                {loading ? (
-                  <>
-                    <Loader2 className="w-5 h-5 animate-spin" />
-                    <span>Iniciando sesión...</span>
-                  </>
-                ) : (
-                  <span>Iniciar Sesión</span>
-                )}
-              </span>
-              <div className="absolute inset-0 bg-white/20 opacity-0 group-hover:opacity-100 transition-opacity duration-300"></div>
+              {loading ? (
+                <>
+                  <Loader2 className="w-5 h-5 animate-spin" />
+                  <span>Iniciando sesión...</span>
+                </>
+              ) : (
+                <span>Iniciar Sesión</span>
+              )}
             </button>
           </form>
 
           {/* Enlace a Registro */}
           <div className="mt-6 text-center">
-            <p className="text-slate-600 text-sm">
+            <p className="text-slate-500 text-sm">
               ¿No tienes una cuenta?{' '}
               <button
                 onClick={onSwitchToRegister}
-                className="text-blue-600 font-semibold hover:text-blue-700 hover:underline transition-colors"
+                className="text-slate-900 font-semibold hover:underline transition-colors"
               >
                 Regístrate aquí
               </button>
