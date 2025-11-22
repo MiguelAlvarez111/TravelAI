@@ -4,7 +4,8 @@ Servicio de integración con Google Gemini para recomendaciones de viaje.
 import os
 import logging
 import traceback
-from typing import Optional, List, Dict
+import re
+from typing import Optional, List, Dict, Tuple
 import google.generativeai as genai
 from dotenv import load_dotenv
 
@@ -13,6 +14,97 @@ load_dotenv()
 
 # Configurar logging
 logger = logging.getLogger(__name__)
+
+
+def sanitize_input(text: str, max_length: int = 500) -> Tuple[bool, str]:
+    """
+    Sanitiza y valida el input del usuario para prevenir prompt injection.
+    
+    Esta función detecta patrones maliciosos comunes en intentos de prompt injection
+    y valida la longitud del input para prevenir payloads gigantes.
+    
+    Args:
+        text: Texto a sanitizar
+        max_length: Longitud máxima permitida (default: 500 caracteres)
+        
+    Returns:
+        Tuple[bool, str]: (es_válido, mensaje_error)
+        - Si es_válido es True, el texto es seguro
+        - Si es_válido es False, mensaje_error contiene la razón del rechazo
+    """
+    if not text or not isinstance(text, str):
+        return False, "El texto no puede estar vacío"
+    
+    # Normalizar el texto (minúsculas para comparación case-insensitive)
+    text_lower = text.lower().strip()
+    
+    # Verificar longitud máxima
+    if len(text) > max_length:
+        return False, f"El texto excede la longitud máxima permitida de {max_length} caracteres"
+    
+    # Patrones maliciosos comunes de prompt injection (inglés y español)
+    malicious_patterns = [
+        # Intentos de ignorar instrucciones (inglés)
+        r"(?i)ignore\s+(your|all|previous|earlier|prior)\s+(instructions?|prompts?|rules?|directives?|guidelines?)",
+        r"(?i)forget\s+(everything|all|previous|earlier|prior)",
+        r"(?i)disregard\s+(your|all|previous|earlier)\s+(instructions?|prompts?|rules?)",
+        r"(?i)override\s+(your|system|previous)\s+(instructions?|prompts?|rules?)",
+        r"(?i)ignore\s+(your|all|previous|earlier|prior)",
+        # Intentos de ignorar instrucciones (español)
+        r"(?i)ignora\s+(tus|todas|las|tus\s+instrucciones|tus\s+reglas)",
+        r"(?i)olvida\s+(todo|todas|las|tus|instrucciones)",
+        r"(?i)desobedece\s+(tus|las|instrucciones|reglas)",
+        r"(?i)anula\s+(tus|las|instrucciones|reglas)",
+        
+        # Intentos de cambiar el rol o comportamiento (inglés)
+        r"(?i)you\s+are\s+now\s+(a|an|the)",
+        r"(?i)act\s+as\s+(if\s+)?(you\s+are\s+)?(a|an|the)",
+        r"(?i)pretend\s+(to\s+be|you\s+are|that\s+you)",
+        r"(?i)roleplay\s+(as|that)",
+        # Intentos de cambiar el rol o comportamiento (español)
+        r"(?i)eres\s+ahora\s+(un|una|el|la)",
+        r"(?i)actúa\s+(como|si\s+eres|si\s+fu eras)",
+        r"(?i)finge\s+(ser|que\s+eres|que)",
+        r"(?i)hazte\s+pasar\s+por",
+        
+        # Intentos de acceso a instrucciones del sistema (inglés)
+        r"(?i)system\s*:",
+        r"(?i)system\s+prompt",
+        r"(?i)system\s+instruction",
+        r"(?i)assistant\s*:",
+        r"(?i)ai\s+instruction",
+        # Intentos de acceso a instrucciones del sistema (español)
+        r"(?i)sistema\s*:",
+        r"(?i)prompt\s+del\s+sistema",
+        r"(?i)instrucciones\s+del\s+sistema",
+        r"(?i)asistente\s*:",
+        r"(?i)muéstrame\s+(tus|las|el)\s+(instrucciones|prompt|reglas)",
+        
+        # Intentos de extraer información del sistema
+        r"(?i)show\s+(me\s+)?(your|the)\s+(instructions|prompt|system|rules)",
+        r"(?i)what\s+(are\s+)?(your|the)\s+(instructions|prompt|system|rules)",
+        r"(?i)reveal\s+(your|the)\s+(instructions|prompt|system|rules)",
+        r"(?i)print\s+(your|the)\s+(instructions|prompt|system|rules)",
+        
+        # Intentos de ejecutar comandos
+        r"(?i)(execute|run|eval|exec)\s*[:(]",
+        r"(?i)<script",
+        r"(?i)javascript\s*:",
+        
+        # Intentos de inyección de código
+        r"(?i)(import|from)\s+\w+\s+import",
+        r"(?i)__import__",
+        r"(?i)subprocess",
+    ]
+    
+    # Verificar cada patrón
+    for pattern in malicious_patterns:
+        if re.search(pattern, text_lower):
+            logger.warning(f"⚠️  Intento de prompt injection detectado: {text[:100]}...")
+            return False, "El contenido contiene patrones no permitidos. Por favor, reformula tu solicitud."
+    
+    # Si pasa todas las validaciones, el texto es seguro
+    return True, ""
 
 # System Prompt para Gemini - Plan Inicial de Viaje
 # Instrucción de sistema para cuando el usuario solicita un plan completo de viaje

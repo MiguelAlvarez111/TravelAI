@@ -9,12 +9,16 @@ import json
 from typing import Optional, List, Dict
 from collections import Counter
 from datetime import datetime
-from fastapi import FastAPI, HTTPException
+from fastapi import FastAPI, HTTPException, Request
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import JSONResponse
 from pydantic import BaseModel
 from dotenv import load_dotenv
+from slowapi import Limiter, _rate_limit_exceeded_handler
+from slowapi.util import get_remote_address
+from slowapi.errors import RateLimitExceeded
 
-from services.gemini_service import get_gemini_service
+from services.gemini_service import get_gemini_service, sanitize_input
 from services.weather_service import get_weather_service
 from services.unsplash_service import get_unsplash_service
 
@@ -86,6 +90,29 @@ app = FastAPI(
     description="API para recomendaciones de viaje con Google Gemini",
     version="1.0.0"
 )
+
+# Configurar Rate Limiting con slowapi
+limiter = Limiter(key_func=get_remote_address)
+app.state.limiter = limiter
+
+# Personalizar el handler de rate limit exceeded con mensaje en español
+def rate_limit_handler(request: Request, exc: RateLimitExceeded):
+    """Handler personalizado para errores de rate limiting."""
+    response = JSONResponse(
+        status_code=429,
+        content={"detail": "Has alcanzado el límite de consultas. Espera un momento."}
+    )
+    # Inyectar headers de rate limiting si están disponibles
+    if hasattr(request.state, 'view_rate_limit'):
+        try:
+            response = request.app.state.limiter._inject_headers(
+                response, request.state.view_rate_limit
+            )
+        except Exception:
+            pass  # Si falla, continuar sin headers adicionales
+    return response
+
+app.add_exception_handler(RateLimitExceeded, rate_limit_handler)
 
 # Configurar CORS para permitir requests del frontend React
 # IMPORTANTE: Cuando allow_credentials=True, no puedes usar ["*"] - debes especificar orígenes explícitos
@@ -238,7 +265,8 @@ async def get_stats():
 
 
 @app.post("/api/plan")
-async def create_travel_plan(request: TravelRequest):
+@limiter.limit("5/minute")
+async def create_travel_plan(request: Request, travel_request: TravelRequest):
     """
     Endpoint principal para generar recomendaciones de viaje con datos en tiempo real.
     
@@ -257,16 +285,41 @@ async def create_travel_plan(request: TravelRequest):
         HTTPException: Si hay un error al procesar la solicitud
     """
     try:
-        logger.info(f"📨 Nueva solicitud recibida: Destino={request.destination}, Fecha={request.date}, Presupuesto={request.budget}, Estilo={request.style}, Moneda={request.user_currency}")
+        logger.info(f"📨 Nueva solicitud recibida: Destino={travel_request.destination}, Fecha={travel_request.date}, Presupuesto={travel_request.budget}, Estilo={travel_request.style}, Moneda={travel_request.user_currency}")
         
         # Validar que el destino no esté vacío
-        if not request.destination or not request.destination.strip():
+        if not travel_request.destination or not travel_request.destination.strip():
             raise HTTPException(
                 status_code=400,
                 detail="El destino no puede estar vacío. Por favor, proporciona un destino para tu viaje."
             )
         
-        destination = request.destination.strip()
+        # Sanitizar y validar el destino (máximo 100 caracteres para destinos)
+        destination_raw = travel_request.destination.strip()
+        is_valid, error_msg = sanitize_input(destination_raw, max_length=100)
+        if not is_valid:
+            logger.warning(f"⚠️  Intento de prompt injection o input inválido en destino: {error_msg}")
+            raise HTTPException(
+                status_code=400,
+                detail=error_msg
+            )
+        destination = destination_raw
+        
+        # Sanitizar otros campos opcionales si no están vacíos
+        if travel_request.date:
+            is_valid, error_msg = sanitize_input(travel_request.date, max_length=50)
+            if not is_valid:
+                raise HTTPException(status_code=400, detail=f"Campo 'fecha' inválido: {error_msg}")
+        
+        if travel_request.budget:
+            is_valid, error_msg = sanitize_input(travel_request.budget, max_length=50)
+            if not is_valid:
+                raise HTTPException(status_code=400, detail=f"Campo 'presupuesto' inválido: {error_msg}")
+        
+        if travel_request.style:
+            is_valid, error_msg = sanitize_input(travel_request.style, max_length=50)
+            if not is_valid:
+                raise HTTPException(status_code=400, detail=f"Campo 'estilo' inválido: {error_msg}")
         
         # Obtener servicios con manejo de errores
         try:
@@ -301,17 +354,17 @@ async def create_travel_plan(request: TravelRequest):
         
         # Llamar a Gemini (síncrono pero lo ejecutamos en un executor para no bloquear)
         # Verificar que los argumentos sean correctos antes de enviar
-        logger.info(f"📤 Enviando a Gemini: destination='{destination}', date='{request.date}', budget='{request.budget}', style='{request.style}', currency='{request.user_currency}'")
+        logger.info(f"📤 Enviando a Gemini: destination='{destination}', date='{travel_request.date}', budget='{travel_request.budget}', style='{travel_request.style}', currency='{travel_request.user_currency}'")
         
         loop = asyncio.get_event_loop()
         gemini_task = loop.run_in_executor(
             None,
             lambda: gemini_service.generate_travel_recommendation(
                 destination=destination,
-                date=request.date or "",
-                budget=request.budget or "",
-                style=request.style or "",
-                user_currency=request.user_currency or "USD"
+                date=travel_request.date or "",
+                budget=travel_request.budget or "",
+                style=travel_request.style or "",
+                user_currency=travel_request.user_currency or "USD"
             )
         )
         
@@ -350,7 +403,7 @@ async def create_travel_plan(request: TravelRequest):
             except Exception:
                 logger.error(f"📋 No se pudo obtener traceback completo. Error: {error_message}")
             logger.error(f"🔍 Tipo de excepción: {error_type}")
-            logger.error(f"🔍 Argumentos enviados a Gemini: destination='{destination}', date='{request.date}', budget='{request.budget}', style='{request.style}'")
+            logger.error(f"🔍 Argumentos enviados a Gemini: destination='{destination}', date='{travel_request.date}', budget='{travel_request.budget}', style='{travel_request.style}'")
             raise HTTPException(
                 status_code=500,
                 detail="Ocurrió un error consultando a la IA"
@@ -431,7 +484,8 @@ async def create_travel_plan(request: TravelRequest):
 
 
 @app.post("/api/chat")
-async def chat_with_memory(request: ChatRequest):
+@limiter.limit("10/minute")
+async def chat_with_memory(request: Request, chat_request: ChatRequest):
     """
     Endpoint para chat continuo con memoria conversacional.
     
@@ -448,49 +502,81 @@ async def chat_with_memory(request: ChatRequest):
         HTTPException: Si hay un error al procesar la solicitud
     """
     try:
-        logger.info(f"💬 Nueva solicitud de chat: Destino={request.destination}, Mensaje={request.message[:50]}...")
+        logger.info(f"💬 Nueva solicitud de chat: Destino={chat_request.destination}, Mensaje={chat_request.message[:50]}...")
         
         # Validar que el destino y mensaje no estén vacíos
-        if not request.destination or not request.destination.strip():
+        if not chat_request.destination or not chat_request.destination.strip():
             raise HTTPException(
                 status_code=400,
                 detail="El destino no puede estar vacío."
             )
         
-        if not request.message or not request.message.strip():
+        if not chat_request.message or not chat_request.message.strip():
             raise HTTPException(
                 status_code=400,
                 detail="El mensaje no puede estar vacío."
             )
         
-        destination = request.destination.strip()
-        message = request.message.strip()
+        # Sanitizar y validar el destino (máximo 100 caracteres)
+        destination_raw = chat_request.destination.strip()
+        is_valid, error_msg = sanitize_input(destination_raw, max_length=100)
+        if not is_valid:
+            logger.warning(f"⚠️  Intento de prompt injection o input inválido en destino: {error_msg}")
+            raise HTTPException(
+                status_code=400,
+                detail=error_msg
+            )
+        destination = destination_raw
+        
+        # Sanitizar y validar el mensaje (máximo 500 caracteres para chat)
+        message_raw = chat_request.message.strip()
+        is_valid, error_msg = sanitize_input(message_raw, max_length=500)
+        if not is_valid:
+            logger.warning(f"⚠️  Intento de prompt injection o input inválido en mensaje: {error_msg}")
+            raise HTTPException(
+                status_code=400,
+                detail=error_msg
+            )
+        message = message_raw
+        
+        # Sanitizar historial de mensajes si existe
+        sanitized_history = []
+        for msg in chat_request.history:
+            if isinstance(msg, dict):
+                parts = msg.get('parts', '')
+            elif hasattr(msg, 'model_dump'):
+                parts = msg.model_dump().get('parts', '')
+            elif hasattr(msg, 'dict'):
+                parts = msg.dict().get('parts', '')
+            else:
+                parts = getattr(msg, 'parts', '')
+            
+            # Validar cada mensaje del historial
+            if parts:
+                is_valid, error_msg = sanitize_input(str(parts), max_length=500)
+                if not is_valid:
+                    logger.warning(f"⚠️  Mensaje del historial rechazado: {error_msg}")
+                    continue  # Omitir mensajes maliciosos del historial
+            
+            # Mantener el formato original del mensaje
+            if isinstance(msg, dict):
+                sanitized_history.append(msg)
+            elif hasattr(msg, 'model_dump'):
+                sanitized_history.append(msg.model_dump())
+            elif hasattr(msg, 'dict'):
+                sanitized_history.append(msg.dict())
+            else:
+                sanitized_history.append({
+                    "role": getattr(msg, 'role', 'user'),
+                    "parts": str(parts)
+                })
         
         # Limitar el historial a los últimos 6 mensajes para optimizar tokens
-        limited_history = request.history[-6:] if len(request.history) > 6 else request.history
-        logger.info(f"📚 Historial limitado a {len(limited_history)} mensajes (de {len(request.history)} totales)")
+        limited_history = sanitized_history[-6:] if len(sanitized_history) > 6 else sanitized_history
+        logger.info(f"📚 Historial limitado a {len(limited_history)} mensajes (de {len(sanitized_history)} totales)")
         
-        # Convertir objetos ChatMessage (Pydantic) a diccionarios para gemini_service
-        # gemini_service espera List[Dict] y usa .get() en los mensajes
-        # Compatible con Pydantic v1 (.dict()) y v2 (.model_dump())
-        history_dicts = []
-        for msg in limited_history:
-            if isinstance(msg, dict):
-                # Ya es un diccionario
-                history_dicts.append(msg)
-            elif hasattr(msg, 'model_dump'):
-                # Pydantic v2
-                history_dicts.append(msg.model_dump())
-            elif hasattr(msg, 'dict'):
-                # Pydantic v1
-                history_dicts.append(msg.dict())
-            else:
-                # Fallback: convertir manualmente si es un objeto con atributos
-                logger.warning(f"⚠️  Formato de mensaje inesperado: {type(msg)}, convirtiendo manualmente")
-                history_dicts.append({
-                    "role": getattr(msg, 'role', 'user'),
-                    "parts": getattr(msg, 'parts', '')
-                })
+        # El historial ya está sanitizado y convertido a diccionarios
+        history_dicts = limited_history
         
         # Obtener servicios
         gemini_service = get_gemini_service()
@@ -506,9 +592,9 @@ async def chat_with_memory(request: ChatRequest):
             None,
             lambda: gemini_service.generate_chat_response(
                 destination=destination,
-                date=request.date,
-                budget=request.budget,
-                style=request.style,
+                date=chat_request.date,
+                budget=chat_request.budget,
+                style=chat_request.style,
                 message=message,
                 history=history_dicts
             )

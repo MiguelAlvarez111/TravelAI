@@ -42,3 +42,4 @@ frontend/.vite/
 # Logs
 *.log
 logs/
+stats.json
