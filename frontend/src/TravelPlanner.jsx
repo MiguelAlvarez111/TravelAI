@@ -149,7 +149,11 @@ const TravelPlanner = () => {
    * @param {Object} travelData - Datos del viaje generado
    */
   const saveHistoryToFirebase = async (travelData) => {
-    if (!user) return;
+    // Validación defensiva: verificar que user existe y tiene uid
+    if (!user || !user.uid) {
+      console.warn('No se puede guardar historial: usuario no autenticado o sin UID');
+      return;
+    }
 
     try {
       const historyRef = ref(database, `users/${user.uid}/history`);
@@ -163,9 +167,10 @@ const TravelPlanner = () => {
       };
 
       await push(historyRef, historyEntry);
-      console.log('Historial guardado en Firebase');
+      // Removido console.log para producción - solo logs de error son necesarios
     } catch (error) {
-      console.error('Error al guardar historial en Firebase:', error);
+      // Solo loguear errores críticos, sin exponer detalles sensibles
+      console.error('Error al guardar historial en Firebase');
       // No mostramos error al usuario, es una operación en segundo plano
     }
   };

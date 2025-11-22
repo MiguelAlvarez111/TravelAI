@@ -5,16 +5,45 @@ import { getAuth } from "firebase/auth";
 import { getDatabase } from "firebase/database";
 
 // Your web app's Firebase configuration
+// Las variables de entorno en Vite deben comenzar con VITE_ para ser accesibles
+// Asegúrate de tener un archivo .env en el directorio frontend/ con todas las variables
+
 const firebaseConfig = {
-  apiKey: "AIzaSyAFeXlHL7otKuL2OyaWmY50ma-W1WIEKhk",
-  authDomain: "viajeia-f502b.firebaseapp.com",
-  databaseURL: "https://viajeia-f502b-default-rtdb.firebaseio.com",
-  projectId: "viajeia-f502b",
-  storageBucket: "viajeia-f502b.firebasestorage.app",
-  messagingSenderId: "733742734822",
-  appId: "1:733742734822:web:029a7f516cbb6b87200a27",
-  measurementId: "G-98WD7E9RL9"
+  apiKey: import.meta.env.VITE_FIREBASE_API_KEY,
+  authDomain: import.meta.env.VITE_FIREBASE_AUTH_DOMAIN,
+  databaseURL: import.meta.env.VITE_FIREBASE_DATABASE_URL,
+  projectId: import.meta.env.VITE_FIREBASE_PROJECT_ID,
+  storageBucket: import.meta.env.VITE_FIREBASE_STORAGE_BUCKET,
+  messagingSenderId: import.meta.env.VITE_FIREBASE_MESSAGING_SENDER_ID,
+  appId: import.meta.env.VITE_FIREBASE_APP_ID,
+  measurementId: import.meta.env.VITE_FIREBASE_MEASUREMENT_ID
 };
+
+// Validar que todas las variables de entorno estén definidas
+const requiredEnvVars = [
+  'VITE_FIREBASE_API_KEY',
+  'VITE_FIREBASE_AUTH_DOMAIN',
+  'VITE_FIREBASE_DATABASE_URL',
+  'VITE_FIREBASE_PROJECT_ID',
+  'VITE_FIREBASE_STORAGE_BUCKET',
+  'VITE_FIREBASE_MESSAGING_SENDER_ID',
+  'VITE_FIREBASE_APP_ID'
+];
+
+const missingVars = requiredEnvVars.filter(
+  varName => !import.meta.env[varName]
+);
+
+if (missingVars.length > 0) {
+  console.error(
+    '❌ Error: Faltan variables de entorno de Firebase:',
+    missingVars.join(', ')
+  );
+  console.error(
+    'Por favor, crea un archivo .env en frontend/ con todas las variables necesarias.'
+  );
+  console.error('Puedes usar .env.example como template.');
+}
 
 // Initialize Firebase
 const app = initializeApp(firebaseConfig);
