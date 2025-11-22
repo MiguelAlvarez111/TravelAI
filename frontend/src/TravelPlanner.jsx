@@ -264,6 +264,13 @@ const TravelPlanner = () => {
       const data = await apiResponse.json();
       setTravelData(data);
       
+      // Detectar si la respuesta fue cortada por límite de tokens
+      if (data.finish_reason && data.finish_reason !== 'STOP') {
+        toast.warning('Nota: La respuesta fue cortada por límite de longitud.', {
+          duration: 5000,
+        });
+      }
+      
       // Agregar mensaje simulado de Alex (evitar redundancia con las cards visuales)
       setChatHistory([
         {
@@ -342,6 +349,13 @@ const TravelPlanner = () => {
       }
 
       const data = await apiResponse.json();
+      
+      // Detectar si la respuesta fue cortada por límite de tokens
+      if (data.finish_reason && data.finish_reason !== 'STOP') {
+        toast.warning('Nota: La respuesta fue cortada por límite de longitud.', {
+          duration: 5000,
+        });
+      }
       
       // Agregar respuesta del modelo al historial (siempre)
       const newModelMessage = { role: 'model', parts: data.gemini_response };

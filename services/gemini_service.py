@@ -166,11 +166,32 @@ class GeminiService:
         # Configurar la API key
         genai.configure(api_key=self.api_key)
         
-        # Inicializar el modelo usando gemini-2.0-flash (gemini-1.5-flash no está disponible)
-        # Configuración del modelo usando os.getenv para la API Key (ya configurada arriba)
+        # Inicializar el modelo usando gemini-2.0-flash con configuración avanzada
+        # Configuración del modelo con límites de tokens y temperatura
         try:
-            self.model = genai.GenerativeModel(model_name='gemini-2.0-flash')
+            # Configuración de generación con límites de tokens y temperatura
+            # max_output_tokens: 2048 - Límite máximo de tokens en la respuesta generada.
+            #   Controla la longitud máxima de la salida. Un token ≈ 4 caracteres en español.
+            #   Con 2048 tokens, la respuesta puede tener aproximadamente 8000 caracteres.
+            #   Esto previene respuestas excesivamente largas y controla costos.
+            #
+            # temperature: 0.7 - Controla la creatividad vs precisión de las respuestas.
+            #   Rango: 0.0 (muy determinista, repetitivo) a 1.0 (muy creativo, variado).
+            #   Con 0.7, obtenemos un balance entre creatividad y coherencia:
+            #   - Respuestas creativas pero coherentes
+            #   - Variedad en las recomendaciones sin perder precisión
+            #   - Ideal para consultoría de viajes donde queremos sugerencias únicas pero útiles
+            generation_config = {
+                "max_output_tokens": 2048,
+                "temperature": 0.7
+            }
+            
+            self.model = genai.GenerativeModel(
+                model_name='gemini-2.0-flash',
+                generation_config=generation_config
+            )
             logger.info("✅ Servicio de Gemini inicializado correctamente con gemini-2.0-flash")
+            logger.info("⚙️  Configuración: max_output_tokens=2048, temperature=0.7")
         except Exception as e:
             logger.error(f"❌ Error al inicializar el modelo de Gemini: {e}")
             raise
@@ -182,7 +203,7 @@ class GeminiService:
         budget: str = "",
         style: str = "",
         user_currency: str = "USD"
-    ) -> str:
+    ) -> Tuple[str, str]:
         """
         Genera una recomendación de viaje usando Gemini con campos estructurados.
         
@@ -194,7 +215,9 @@ class GeminiService:
             user_currency: Moneda del usuario para conversión (opcional, default: USD)
             
         Returns:
-            str: Recomendación de viaje formateada en Markdown con las 5 secciones estrictas
+            Tuple[str, str]: (recomendación, finish_reason)
+            - recomendación: Recomendación de viaje formateada en Markdown con las 5 secciones estrictas
+            - finish_reason: Razón de finalización de la generación ("STOP", "MAX_TOKENS", etc.)
             
         Raises:
             Exception: Si hay un error al comunicarse con Gemini
@@ -249,8 +272,38 @@ class GeminiService:
             
             recommendation = response.text
             
-            logger.info(f"✅ Recomendación generada exitosamente por Alex ({len(recommendation)} caracteres)")
-            return recommendation
+            # Extraer finish_reason para detectar si la respuesta fue cortada
+            finish_reason = "STOP"  # Valor por defecto
+            if hasattr(response, 'candidates') and response.candidates:
+                candidate = response.candidates[0]
+                if hasattr(candidate, 'finish_reason'):
+                    finish_reason_raw = candidate.finish_reason
+                    # Manejar diferentes tipos de finish_reason (enum, string, número)
+                    if finish_reason_raw is None:
+                        finish_reason = "STOP"
+                    elif hasattr(finish_reason_raw, 'name'):  # Es un enum
+                        finish_reason = finish_reason_raw.name
+                    elif hasattr(finish_reason_raw, 'value'):  # Es un enum con value
+                        finish_reason = str(finish_reason_raw.value)
+                    else:
+                        finish_reason = str(finish_reason_raw)
+                    
+                    # Normalizar valores comunes
+                    finish_reason_upper = finish_reason.upper()
+                    if "STOP" in finish_reason_upper or finish_reason == "1" or finish_reason == 1:
+                        finish_reason = "STOP"
+                    elif "MAX_TOKENS" in finish_reason_upper or "LENGTH" in finish_reason_upper or finish_reason == "2" or finish_reason == 2:
+                        finish_reason = "MAX_TOKENS"
+                    elif "SAFETY" in finish_reason_upper or finish_reason == "3" or finish_reason == 3:
+                        finish_reason = "SAFETY"
+                    elif "RECITATION" in finish_reason_upper or finish_reason == "4" or finish_reason == 4:
+                        finish_reason = "RECITATION"
+                    
+                    if finish_reason != "STOP":
+                        logger.warning(f"⚠️  Respuesta cortada: finish_reason={finish_reason}")
+            
+            logger.info(f"✅ Recomendación generada exitosamente por Alex ({len(recommendation)} caracteres, finish_reason={finish_reason})")
+            return recommendation, finish_reason
             
         except ValueError as e:
             # Errores de validación o configuración
@@ -275,7 +328,7 @@ class GeminiService:
         style: str = "",
         message: str = "",
         history: List[Dict] = []
-    ) -> str:
+    ) -> Tuple[str, str]:
         """
         Genera una respuesta de chat usando Gemini con memoria conversacional.
         
@@ -283,11 +336,12 @@ class GeminiService:
         la personalidad de Alex (consultor de viajes experto y entusiasta) mediante un
         system prompt especializado para conversaciones (SYSTEM_INSTRUCTION_CHAT).
         
-        El historial de conversación se limita a los últimos 6 mensajes para optimizar
-        el uso de tokens y mantener el contexto relevante. Si hay historial, se construye
-        un prompt que incluye el contexto del viaje, el historial de conversación y el
-        nuevo mensaje del usuario. Si no hay historial, se trata como una solicitud inicial
-        y se usa SYSTEM_INSTRUCTION_PLAN.
+        El historial de conversación se limita a los últimos 10 mensajes para optimizar
+        el uso de tokens de entrada y mantener el contexto relevante. Esto reduce los costos
+        de API al enviar solo el contexto más reciente necesario para la conversación.
+        Si hay historial, se construye un prompt que incluye el contexto del viaje, el
+        historial de conversación y el nuevo mensaje del usuario. Si no hay historial, se
+        trata como una solicitud inicial y se usa SYSTEM_INSTRUCTION_PLAN.
         
         Args:
             destination: El destino del viaje
@@ -298,7 +352,9 @@ class GeminiService:
             history: Lista de mensajes anteriores en formato [{"role": "user", "parts": "..."}, ...]
             
         Returns:
-            str: Respuesta de Gemini formateada en Markdown
+            Tuple[str, str]: (respuesta, finish_reason)
+            - respuesta: Respuesta de Gemini formateada en Markdown
+            - finish_reason: Razón de finalización de la generación ("STOP", "MAX_TOKENS", etc.)
             
         Raises:
             Exception: Si hay un error al comunicarse con Gemini
@@ -314,10 +370,18 @@ class GeminiService:
                 context_info += f", Estilo: {style}"
             
             # Si hay historial, construir el prompt con el historial concatenado
+            # Gestión de Historial: Limitar a los últimos 10 mensajes para ahorrar tokens de entrada
+            # Esto reduce significativamente el costo de cada llamada a la API al enviar
+            # solo el contexto más reciente necesario para mantener la coherencia conversacional.
             if history:
+                # Limitar el historial a los últimos 10 mensajes
+                limited_history = history[-10:] if len(history) > 10 else history
+                if len(history) > 10:
+                    logger.info(f"📚 Historial limitado a {len(limited_history)} mensajes (de {len(history)} totales) para optimizar tokens")
+                
                 # Construir el historial como texto para el contexto
                 history_text = "\n\n--- Historial de Conversación ---\n\n"
-                for msg in history:
+                for msg in limited_history:
                     role_label = "Usuario" if msg.get("role") == "user" else "Alex"
                     history_text += f"{role_label}: {msg.get('parts', '')}\n\n"
                 
@@ -325,7 +389,7 @@ class GeminiService:
                 # Para preguntas de seguimiento, usa la instrucción conversacional
                 full_prompt = f"{SYSTEM_INSTRUCTION_CHAT}\n\n---\n\n{context_info}\n\n{history_text}---\n\nUsuario pregunta ahora: {message}"
                 
-                logger.info(f"Enviando mensaje de chat a Gemini con historial de {len(history)} mensajes")
+                logger.info(f"Enviando mensaje de chat a Gemini con historial de {len(limited_history)} mensajes")
             else:
                 # Si no hay historial, es el primer mensaje - usar SYSTEM_INSTRUCTION_PLAN
                 prompt_parts = [f"Planifica un viaje a {destination}"]
@@ -347,8 +411,39 @@ class GeminiService:
             # Generar respuesta usando Gemini
             response = self.model.generate_content(full_prompt)
             recommendation = response.text
-            logger.info("✅ Respuesta generada exitosamente por Alex")
-            return recommendation
+            
+            # Extraer finish_reason para detectar si la respuesta fue cortada
+            finish_reason = "STOP"  # Valor por defecto
+            if hasattr(response, 'candidates') and response.candidates:
+                candidate = response.candidates[0]
+                if hasattr(candidate, 'finish_reason'):
+                    finish_reason_raw = candidate.finish_reason
+                    # Manejar diferentes tipos de finish_reason (enum, string, número)
+                    if finish_reason_raw is None:
+                        finish_reason = "STOP"
+                    elif hasattr(finish_reason_raw, 'name'):  # Es un enum
+                        finish_reason = finish_reason_raw.name
+                    elif hasattr(finish_reason_raw, 'value'):  # Es un enum con value
+                        finish_reason = str(finish_reason_raw.value)
+                    else:
+                        finish_reason = str(finish_reason_raw)
+                    
+                    # Normalizar valores comunes
+                    finish_reason_upper = finish_reason.upper()
+                    if "STOP" in finish_reason_upper or finish_reason == "1" or finish_reason == 1:
+                        finish_reason = "STOP"
+                    elif "MAX_TOKENS" in finish_reason_upper or "LENGTH" in finish_reason_upper or finish_reason == "2" or finish_reason == 2:
+                        finish_reason = "MAX_TOKENS"
+                    elif "SAFETY" in finish_reason_upper or finish_reason == "3" or finish_reason == 3:
+                        finish_reason = "SAFETY"
+                    elif "RECITATION" in finish_reason_upper or finish_reason == "4" or finish_reason == 4:
+                        finish_reason = "RECITATION"
+                    
+                    if finish_reason != "STOP":
+                        logger.warning(f"⚠️  Respuesta cortada en chat: finish_reason={finish_reason}")
+            
+            logger.info(f"✅ Respuesta generada exitosamente por Alex (finish_reason={finish_reason})")
+            return recommendation, finish_reason
             
         except ValueError as e:
             # Errores de validación o configuración

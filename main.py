@@ -389,7 +389,7 @@ async def create_travel_plan(request: Request, travel_request: TravelRequest):
             images_task = empty_images()
         
         # Esperar todas las respuestas en paralelo
-        gemini_response, weather_data, images = await asyncio.gather(
+        gemini_result, weather_data, images = await asyncio.gather(
             gemini_task,
             weather_task,
             images_task,
@@ -397,13 +397,13 @@ async def create_travel_plan(request: Request, travel_request: TravelRequest):
         )
         
         # Manejar errores individuales sin fallar toda la respuesta
-        if isinstance(gemini_response, Exception):
-            error_type = type(gemini_response).__name__
-            error_message = str(gemini_response)
+        if isinstance(gemini_result, Exception):
+            error_type = type(gemini_result).__name__
+            error_message = str(gemini_result)
             logger.error(f"❌ Error en Gemini: {error_type}: {error_message}")
             # Obtener traceback de la excepción capturada
             try:
-                tb_lines = traceback.format_exception(type(gemini_response), gemini_response, gemini_response.__traceback__)
+                tb_lines = traceback.format_exception(type(gemini_result), gemini_result, gemini_result.__traceback__)
                 logger.error(f"📋 Traceback completo del error de Gemini:\n{''.join(tb_lines)}")
             except Exception:
                 logger.error(f"📋 No se pudo obtener traceback completo. Error: {error_message}")
@@ -413,6 +413,9 @@ async def create_travel_plan(request: Request, travel_request: TravelRequest):
                 status_code=500,
                 detail="Ocurrió un error consultando a la IA"
             )
+        
+        # Desempaquetar la tupla (respuesta, finish_reason)
+        gemini_response, finish_reason = gemini_result
         
         # Fallo gracioso: Si weather o images fallan, continuar con valores por defecto
         if isinstance(weather_data, Exception):
@@ -444,7 +447,7 @@ async def create_travel_plan(request: Request, travel_request: TravelRequest):
             # Opcional: agregar currency si se implementa en el futuro
         
         logger.info("✅ Recomendación generada con datos en tiempo real")
-        logger.info(f"📊 Resumen: Gemini={'✅' if gemini_response else '❌'}, Weather={'✅' if weather_data else '❌'}, Images={'✅' if images else '❌'}")
+        logger.info(f"📊 Resumen: Gemini={'✅' if gemini_response else '❌'}, Weather={'✅' if weather_data else '❌'}, Images={'✅' if images else '❌'}, FinishReason={finish_reason}")
         
         # Incrementar contador de métricas
         increment_plan_counter(destination)
@@ -452,6 +455,7 @@ async def create_travel_plan(request: Request, travel_request: TravelRequest):
         # Devolver respuesta con nueva estructura (siempre incluir respuesta de Gemini)
         return {
             "gemini_response": gemini_response,
+            "finish_reason": finish_reason,  # Información sobre si la respuesta fue cortada
             "weather": {
                 "temp": weather_data.get("temp") if weather_data and isinstance(weather_data, dict) else None,
                 "condition": weather_data.get("condition") if weather_data and isinstance(weather_data, dict) else None,
@@ -610,7 +614,7 @@ async def chat_with_memory(request: Request, chat_request: ChatRequest):
         images_task = unsplash_service.get_destination_images(destination, count=3)
         
         # Esperar todas las respuestas en paralelo
-        gemini_response, weather_data, images = await asyncio.gather(
+        gemini_result, weather_data, images = await asyncio.gather(
             gemini_task,
             weather_task,
             images_task,
@@ -618,12 +622,15 @@ async def chat_with_memory(request: Request, chat_request: ChatRequest):
         )
         
         # Manejar errores individuales
-        if isinstance(gemini_response, Exception):
-            logger.error(f"❌ Error en Gemini: {gemini_response}")
+        if isinstance(gemini_result, Exception):
+            logger.error(f"❌ Error en Gemini: {gemini_result}")
             raise HTTPException(
                 status_code=500,
                 detail="Ocurrió un error consultando a la IA"
             )
+        
+        # Desempaquetar la tupla (respuesta, finish_reason)
+        gemini_response, finish_reason = gemini_result
         
         if isinstance(weather_data, Exception):
             logger.warning(f"⚠️  Error al obtener clima: {weather_data}")
@@ -638,11 +645,12 @@ async def chat_with_memory(request: Request, chat_request: ChatRequest):
         if weather_data:
             info["local_time"] = weather_data.get("local_time", "N/A")
         
-        logger.info("✅ Respuesta de chat generada con memoria conversacional")
+        logger.info(f"✅ Respuesta de chat generada con memoria conversacional (finish_reason={finish_reason})")
         
         # Devolver respuesta
         return {
             "gemini_response": gemini_response,
+            "finish_reason": finish_reason,  # Información sobre si la respuesta fue cortada
             "weather": {
                 "temp": weather_data.get("temp") if weather_data else None,
                 "condition": weather_data.get("condition") if weather_data else None,
