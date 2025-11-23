@@ -15,6 +15,12 @@
 
 ---
 
+> **📚 Proyecto Académico**  
+> Este proyecto fue desarrollado como parte del curso **"Construcción de Aplicación con IA: Diseño y Personalización de Asistentes"** de la **Universidad de los Andes**.  
+> ViajeIA representa una exploración práctica de cómo la Inteligencia Artificial puede ser diseñada de manera responsable para servir genuinamente a las necesidades humanas.
+
+---
+
 ## 🎯 El Vibe Coding: Cuando la Programación se Convierte en Arte
 
 Hay una diferencia entre escribir código y crear algo que realmente importa. La mayoría de los desarrolladores se enfocan en la sintaxis, en los frameworks, en las mejores prácticas. Y eso está bien. Pero hay algo más profundo, algo que separa a los proyectos que funcionan de los que realmente resuenan.
@@ -23,12 +29,41 @@ Hay una diferencia entre escribir código y crear algo que realmente importa. La
 
 ViajeIA nació de esa sensación. No de un requerimiento técnico, sino de una pregunta simple: *"¿Qué pasaría si pudieras tener un asistente de viajes que realmente entiende lo que quieres?"*
 
-Este proyecto es la respuesta a esa pregunta. Y en el proceso de construirlo, aprendimos algo importante: **la mejor arquitectura es la que te permite iterar rápido, la mejor práctica es la que resuelve problemas reales, y el mejor código es el que puedes entender a las 3 AM cuando todo está roto**.
+---
 
-Aquí no encontrarás sobre-ingeniería. Encontrarás decisiones pragmáticas, código que funciona, y una arquitectura que escala cuando lo necesitas. Porque al final del día, lo que importa no es cuántas líneas de código escribiste, sino cuántas personas pueden usar lo que construiste para hacer su vida un poco mejor.
+## 🤔 Una Reflexión sobre la IA y la Responsabilidad
+
+La Inteligencia Artificial no es meramente una herramienta tecnológica. Es una extensión de la voluntad humana hacia la máquina, y con esa extensión viene una responsabilidad fundamental que muchos desarrolladores eluden.
+
+Cuando construyes un sistema de IA, no estás simplemente escribiendo algoritmos. Estás moldeando cómo las personas interactúan con la información, cómo toman decisiones, y en última instancia, cómo experimentan el mundo. Cada decisión de diseño, cada prompt que escribes, cada restricción que implementas—todo esto configura la realidad de quienes usan tu sistema.
+
+**La IA que no considera la verdad, se convierte en propaganda.** La IA que no respeta los límites, se convierte en invasión. La IA que no entiende el contexto humano, se convierte en una cáscara vacía que puede causar más daño que beneficio.
+
+ViajeIA fue construido con esta conciencia. No es simplemente un generador de recomendaciones de viajes. Es un intento de crear algo que honra la complejidad de la experiencia humana—la necesidad de aventura, la búsqueda de significado, el deseo de conectar con lugares y culturas diferentes.
+
+**La verdad sobre la IA es esta:** No importa cuán sofisticada sea la tecnología subyacente, si no está fundamentada en principios éticos claros y en una comprensión profunda de las necesidades humanas, está destinada a fallar en su propósito más esencial: servir genuinamente a las personas.
+
+Este proyecto representa un esfuerzo por hacer algo correcto. Por implementar sistemas de seguridad que protegen a los usuarios. Por diseñar interfaces que respetan la inteligencia del usuario. Por crear experiencias que, en lugar de manipular, empoderan.
+
+**La pregunta no es "¿Puede la IA hacer esto?"** La pregunta correcta es: **"¿Debe la IA hacer esto, y si lo hace, cómo lo hace de manera que respete la dignidad humana?"**
+
+---
+
+## 🏗️ Sobre la Construcción Responsable
+
+En el proceso de construir ViajeIA, aprendimos algo importante: **la mejor arquitectura es la que te permite iterar rápido, la mejor práctica es la que resuelve problemas reales, y el mejor código es el que puedes entender a las 3 AM cuando todo está roto**.
+
+Pero más allá de eso, aprendimos que construir sistemas de IA es inherentemente un acto moral. Cada línea de código que escribes tiene consecuencias reales para personas reales. El rate limiting no es solo una característica técnica—es protección contra el abuso. La validación de inputs no es solo buenas prácticas—es respeto por la integridad del sistema y de los usuarios.
+
+Aquí no encontrarás sobre-ingeniería. Encontrarás decisiones pragmáticas, código que funciona, y una arquitectura que escala cuando lo necesitas. Pero también encontrarás consideraciones éticas, sistemas de seguridad robustos, y un compromiso genuino con la transparencia.
+
+Porque al final del día, lo que importa no es cuántas líneas de código escribiste, sino si lo que construiste ayuda a las personas a vivir vidas más significativas. Y eso requiere tanto excelencia técnica como integridad moral.
+
+---
 
 **Miguel Alvarez**  
-*Magister en Business Intelligence - Universidad EAN*
+*Magister en Business Intelligence - Universidad EAN*  
+*Proyecto desarrollado para el curso "Construcción de Aplicación con IA: Diseño y Personalización de Asistentes" - Universidad de los Andes*
 
 ---
 
