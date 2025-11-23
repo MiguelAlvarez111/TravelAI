@@ -30,7 +30,7 @@ class UnsplashService:
         else:
             logger.info("✅ Servicio de Unsplash inicializado correctamente")
     
-    async def get_destination_images(self, destination: str, count: int = 3) -> List[str]:
+    async def get_destination_images(self, destination: str, count: int = 8) -> List[str]:
         """
         Obtiene imágenes de alta calidad de un destino usando Unsplash API.
         
@@ -46,7 +46,7 @@ class UnsplashService:
         
         Args:
             destination: Nombre del destino
-            count: Número de imágenes a obtener (default: 3)
+            count: Número de imágenes a obtener (default: 8)
             
         Returns:
             Lista de URLs de imágenes (hasta 'count' imágenes). Retorna lista vacía si hay error.

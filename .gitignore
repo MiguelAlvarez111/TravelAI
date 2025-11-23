@@ -4,6 +4,10 @@
 frontend/.env
 frontend/.env.local
 
+# Firebase credentials (IMPORTANT: Never commit these!)
+serviceAccountKey.json
+*.firebase-adminsdk*.json
+
 # Python
 __pycache__/
 *.py[cod]

@@ -11,7 +11,9 @@ import {
   createUserWithEmailAndPassword,
   signOut,
   onAuthStateChanged,
-  updateProfile
+  updateProfile,
+  GoogleAuthProvider,
+  signInWithPopup
 } from 'firebase/auth';
 import { auth } from '../firebase/config';
 
@@ -130,12 +132,42 @@ export const AuthProvider = ({ children }) => {
     }
   };
 
+  /**
+   * Función para iniciar sesión con Google
+   */
+  const loginWithGoogle = async () => {
+    try {
+      const provider = new GoogleAuthProvider();
+      const userCredential = await signInWithPopup(auth, provider);
+      return { success: true, user: userCredential.user };
+    } catch (error) {
+      let errorMessage = 'Error al iniciar sesión con Google';
+      
+      switch (error.code) {
+        case 'auth/popup-closed-by-user':
+          errorMessage = 'Ventana de autenticación cerrada';
+          break;
+        case 'auth/popup-blocked':
+          errorMessage = 'Ventana emergente bloqueada. Por favor, permite ventanas emergentes';
+          break;
+        case 'auth/cancelled-popup-request':
+          errorMessage = 'Solo se puede abrir una ventana de autenticación a la vez';
+          break;
+        default:
+          errorMessage = error.message || 'Error al iniciar sesión con Google';
+      }
+      
+      return { success: false, error: errorMessage };
+    }
+  };
+
   const value = {
     user,
     loading,
     login,
     register,
-    logout
+    logout,
+    loginWithGoogle
   };
 
   return (

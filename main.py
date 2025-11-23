@@ -9,7 +9,7 @@ import json
 from typing import Optional, List, Dict
 from collections import Counter
 from datetime import datetime
-from fastapi import FastAPI, HTTPException, Request
+from fastapi import FastAPI, HTTPException, Request, Depends, Header
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 from pydantic import BaseModel
@@ -17,6 +17,10 @@ from dotenv import load_dotenv
 from slowapi import Limiter, _rate_limit_exceeded_handler
 from slowapi.util import get_remote_address
 from slowapi.errors import RateLimitExceeded
+
+# Firebase Admin SDK imports
+import firebase_admin
+from firebase_admin import credentials, auth
 
 from services.gemini_service import get_gemini_service, sanitize_input
 from services.weather_service import get_weather_service
@@ -31,6 +35,147 @@ logging.basicConfig(
     format='%(asctime)s - %(name)s - %(levelname)s - %(message)s'
 )
 logger = logging.getLogger(__name__)
+
+# Inicializar Firebase Admin SDK (Robusto - no bloquea el servidor si falla)
+FIREBASE_INITIALIZED = False
+firebase_app = None
+
+try:
+    # 1. Intentar cargar credenciales desde variable de entorno (mejor práctica para Railway)
+    firebase_credentials_json = os.getenv("FIREBASE_CREDENTIALS")
+    
+    if firebase_credentials_json:
+        try:
+            logger.info("🔄 Cargando credenciales de Firebase desde variable de entorno...")
+            # Parsear el JSON string de la variable de entorno
+            cred_dict = json.loads(firebase_credentials_json)
+            cred = credentials.Certificate(cred_dict)
+            firebase_app = firebase_admin.initialize_app(cred)
+            FIREBASE_INITIALIZED = True
+            logger.info("✅ Firebase Admin SDK inicializado desde FIREBASE_CREDENTIALS")
+        except json.JSONDecodeError as e:
+            logger.error(f"❌ Error al parsear FIREBASE_CREDENTIALS como JSON: {e}")
+        except ValueError as e:
+            # Firebase ya inicializado (puede pasar si se recarga el módulo)
+            if "already exists" in str(e).lower():
+                logger.info("ℹ️  Firebase Admin SDK ya estaba inicializado")
+                FIREBASE_INITIALIZED = True
+            else:
+                logger.error(f"❌ Error al inicializar Firebase desde FIREBASE_CREDENTIALS: {e}")
+        except Exception as e:
+            logger.error(f"❌ Error al inicializar Firebase desde FIREBASE_CREDENTIALS: {e}")
+            logger.error(f"📋 Detalles: {type(e).__name__}: {str(e)}")
+    
+    # 2. Fallback: intentar cargar desde archivo local (para desarrollo)
+    if not FIREBASE_INITIALIZED:
+        service_account_path = "serviceAccountKey.json"
+        if os.path.exists(service_account_path):
+            try:
+                logger.info("🔄 Cargando credenciales de Firebase desde archivo local...")
+                cred = credentials.Certificate(service_account_path)
+                firebase_app = firebase_admin.initialize_app(cred)
+                FIREBASE_INITIALIZED = True
+                logger.info("✅ Firebase Admin SDK inicializado desde serviceAccountKey.json")
+            except ValueError as e:
+                # Firebase ya inicializado (puede pasar si se recarga el módulo)
+                if "already exists" in str(e).lower():
+                    logger.info("ℹ️  Firebase Admin SDK ya estaba inicializado")
+                    FIREBASE_INITIALIZED = True
+                else:
+                    logger.error(f"❌ Error al inicializar Firebase desde serviceAccountKey.json: {e}")
+            except Exception as e:
+                logger.error(f"❌ Error al inicializar Firebase desde serviceAccountKey.json: {e}")
+                logger.error(f"📋 Detalles: {type(e).__name__}: {str(e)}")
+        else:
+            logger.warning(
+                "⚠️  No se encontró serviceAccountKey.json y FIREBASE_CREDENTIALS no está configurada. "
+                "Los endpoints protegidos (/api/plan, /api/chat) fallarán con error 503."
+            )
+    
+    if not FIREBASE_INITIALIZED:
+        logger.warning(
+            "⚠️  ADVERTENCIA: Firebase Admin SDK no pudo ser inicializado. "
+            "El servidor arrancará, pero los endpoints protegidos (/api/plan, /api/chat) "
+            "devolverán error 503. Configura FIREBASE_CREDENTIALS o coloca serviceAccountKey.json "
+            "en la raíz del proyecto."
+        )
+except Exception as e:
+    # NO hacemos 'raise' aquí - permitimos que el servidor arranque
+    logger.error(f"❌ Error crítico al inicializar Firebase Admin SDK: {e}")
+    logger.error(f"📋 Traceback completo:\n{traceback.format_exc()}")
+    logger.warning("⚠️  El servidor continuará arrancando, pero los endpoints protegidos fallarán.")
+    FIREBASE_INITIALIZED = False
+
+# Dependency para verificar tokens de Firebase
+async def verify_token(
+    request: Request,
+    authorization: Optional[str] = Header(None, alias="Authorization")
+):
+    """
+    Verifica el token de Firebase ID Token del header Authorization.
+    
+    Args:
+        request: Request object de FastAPI (para almacenar uid en state)
+        authorization: Header Authorization con formato "Bearer <token>"
+        
+    Returns:
+        str: El UID del usuario autenticado
+        
+    Raises:
+        HTTPException: Si el token es inválido, está ausente, o Firebase no está inicializado
+    """
+    if not FIREBASE_INITIALIZED:
+        logger.error("❌ Intento de autenticación pero Firebase no está inicializado")
+        raise HTTPException(
+            status_code=503,
+            detail="Servicio de autenticación no disponible. Contacta al administrador."
+        )
+    
+    if not authorization:
+        logger.warning("⚠️  Intento de acceso sin token de autorización")
+        raise HTTPException(
+            status_code=401,
+            detail="Token de autorización requerido. Por favor, inicia sesión."
+        )
+    
+    # Extraer el token del formato "Bearer <token>"
+    try:
+        scheme, token = authorization.split(" ", 1)
+        if scheme.lower() != "bearer":
+            raise ValueError("Esquema de autorización inválido")
+    except ValueError:
+        logger.warning("⚠️  Formato de header Authorization inválido")
+        raise HTTPException(
+            status_code=401,
+            detail="Formato de autorización inválido. Usa 'Bearer <token>'."
+        )
+    
+    # Verificar el token con Firebase
+    try:
+        decoded_token = auth.verify_id_token(token)
+        uid = decoded_token.get("uid")
+        if not uid:
+            logger.warning("⚠️  Token válido pero sin UID")
+            raise HTTPException(
+                status_code=401,
+                detail="Token inválido: UID no encontrado."
+            )
+        # Almacenar uid en request.state para uso en rate limiting
+        request.state.uid = uid
+        logger.info(f"✅ Token verificado para usuario: {uid}")
+        return uid
+    except firebase_admin.exceptions.InvalidArgumentError as e:
+        logger.warning(f"⚠️  Token inválido (InvalidArgumentError): {e}")
+        raise HTTPException(
+            status_code=401,
+            detail="Token de autorización inválido."
+        )
+    except Exception as e:
+        logger.warning(f"⚠️  Error al verificar token: {type(e).__name__}: {e}")
+        raise HTTPException(
+            status_code=401,
+            detail="Token de autorización inválido o expirado."
+        )
 
 # Sistema de métricas simple (en memoria - se puede persistir en archivo si es necesario)
 STATS_FILE = "stats.json"
@@ -99,12 +244,12 @@ app = FastAPI(
 # Función personalizada para rate limiting por User ID
 def get_rate_limit_key(request: Request):
     """
-    Obtiene la clave para rate limiting basada en User ID.
+    Obtiene la clave para rate limiting basada en User ID desde token de Firebase.
     
     Estrategia:
-    1. Intenta leer el header X-User-ID
-    2. Si existe, usa ese valor como clave (cada usuario tiene su propio contador)
-    3. Si NO existe (ej: usuario no logueado), usa get_remote_address (IP) como fallback
+    1. Intenta extraer y verificar el token de Firebase del header Authorization
+    2. Si el token es válido, usa el UID del usuario (cada usuario tiene su propio contador)
+    3. Si NO hay token o es inválido, usa get_remote_address (IP) como fallback
     
     Args:
         request: Request de FastAPI
@@ -112,15 +257,29 @@ def get_rate_limit_key(request: Request):
     Returns:
         str: Clave única para rate limiting (User ID o IP)
     """
-    # Intentar leer el header X-User-ID
-    user_id = request.headers.get("X-User-ID")
+    # Intentar leer el header Authorization
+    authorization = request.headers.get("Authorization")
     
-    if user_id and user_id.strip():
-        # Si existe y no está vacío, usar el User ID
-        return f"user:{user_id.strip()}"
-    else:
-        # Si no existe, usar IP como fallback (comportamiento original)
-        return get_remote_address(request)
+    if authorization:
+        try:
+            # Extraer el token del formato "Bearer <token>"
+            scheme, token = authorization.split(" ", 1)
+            if scheme.lower() == "bearer" and FIREBASE_INITIALIZED:
+                try:
+                    # Verificar el token con Firebase
+                    decoded_token = auth.verify_id_token(token)
+                    uid = decoded_token.get("uid")
+                    if uid:
+                        return f"user:{uid}"
+                except Exception:
+                    # Si la verificación falla, continuar con IP fallback
+                    pass
+        except ValueError:
+            # Si el formato es inválido, continuar con IP fallback
+            pass
+    
+    # Fallback: usar IP si no hay token válido
+    return get_remote_address(request)
 
 # Configurar Rate Limiting con slowapi usando la función personalizada
 limiter = Limiter(key_func=get_rate_limit_key)
@@ -297,7 +456,7 @@ async def get_stats():
 
 @app.post("/api/plan")
 @limiter.limit("5/minute")
-async def create_travel_plan(request: Request, travel_request: TravelRequest):
+async def create_travel_plan(request: Request, travel_request: TravelRequest, uid: str = Depends(verify_token)):
     """
     Endpoint principal para generar recomendaciones de viaje con datos en tiempo real.
     
@@ -408,7 +567,7 @@ async def create_travel_plan(request: Request, travel_request: TravelRequest):
             weather_task = empty_weather()
         
         if unsplash_service:
-            images_task = unsplash_service.get_destination_images(destination, count=3)
+            images_task = unsplash_service.get_destination_images(destination, count=8)
         else:
             async def empty_images():
                 return []
@@ -520,7 +679,7 @@ async def create_travel_plan(request: Request, travel_request: TravelRequest):
 
 @app.post("/api/chat")
 @limiter.limit("10/minute")
-async def chat_with_memory(request: Request, chat_request: ChatRequest):
+async def chat_with_memory(request: Request, chat_request: ChatRequest, uid: str = Depends(verify_token)):
     """
     Endpoint para chat continuo con memoria conversacional.
     
@@ -637,7 +796,7 @@ async def chat_with_memory(request: Request, chat_request: ChatRequest):
         
         # Llamadas asíncronas a Weather y Unsplash
         weather_task = weather_service.get_weather(destination)
-        images_task = unsplash_service.get_destination_images(destination, count=3)
+        images_task = unsplash_service.get_destination_images(destination, count=8)
         
         # Esperar todas las respuestas en paralelo
         gemini_result, weather_data, images = await asyncio.gather(

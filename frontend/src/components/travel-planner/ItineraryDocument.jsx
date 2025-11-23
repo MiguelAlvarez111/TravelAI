@@ -5,11 +5,11 @@
  * para generar un PDF de alta calidad estilo revista de viajes.
  */
 
-import React from 'react';
+import React, { memo } from 'react';
 import ReactMarkdown from 'react-markdown';
 import { Cloud, DollarSign, MapPin, Calendar, Plane } from 'lucide-react';
 
-const ItineraryDocument = ({ travelData, formData }) => {
+const ItineraryDocument = memo(({ travelData, formData }) => {
   if (!travelData || !formData) return null;
 
   const heroImage = travelData.images && travelData.images.length > 0 
@@ -53,10 +53,14 @@ const ItineraryDocument = ({ travelData, formData }) => {
                 {formData.destination}
               </h1>
             </div>
-            {formData.date && (
+            {(formData.date_start || formData.date_end) && (
               <div className="flex items-center gap-2" style={{ color: 'rgba(255,255,255,0.9)' }}>
                 <Calendar className="w-5 h-5" />
-                <span className="text-lg font-medium">{formData.date}</span>
+                <span className="text-lg font-medium">
+                  {formData.date_start && formData.date_end 
+                    ? `${formData.date_start} - ${formData.date_end}` 
+                    : formData.date_start || formData.date_end}
+                </span>
               </div>
             )}
           </div>
@@ -285,7 +289,15 @@ const ItineraryDocument = ({ travelData, formData }) => {
       </div>
     </div>
   );
-};
+}, (prevProps, nextProps) => {
+  // Solo re-renderizar si cambian los datos relevantes
+  return prevProps.travelData?.gemini_response === nextProps.travelData?.gemini_response &&
+         prevProps.travelData?.images?.[0] === nextProps.travelData?.images?.[0] &&
+         prevProps.formData.destination === nextProps.formData.destination &&
+         prevProps.formData.date === nextProps.formData.date &&
+         prevProps.formData.budget === nextProps.formData.budget &&
+         prevProps.formData.style === nextProps.formData.style;
+});
 
 export default ItineraryDocument;
 
