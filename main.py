@@ -47,14 +47,24 @@ try:
     if firebase_credentials_json:
         try:
             logger.info("🔄 Cargando credenciales de Firebase desde variable de entorno...")
+            # Limpiar el string: eliminar espacios en blanco y posibles caracteres de escape
+            cleaned_json = firebase_credentials_json.strip()
+            
+            # Si el JSON está escapado (común en variables de entorno), intentar desescaparlo
+            if cleaned_json.startswith('"') and cleaned_json.endswith('"'):
+                cleaned_json = cleaned_json[1:-1]  # Remover comillas externas
+                cleaned_json = cleaned_json.replace('\\n', '\n').replace('\\"', '"')
+            
             # Parsear el JSON string de la variable de entorno
-            cred_dict = json.loads(firebase_credentials_json)
+            cred_dict = json.loads(cleaned_json)
             cred = credentials.Certificate(cred_dict)
             firebase_app = firebase_admin.initialize_app(cred)
             FIREBASE_INITIALIZED = True
             logger.info("✅ Firebase Admin SDK inicializado desde FIREBASE_CREDENTIALS")
         except json.JSONDecodeError as e:
             logger.error(f"❌ Error al parsear FIREBASE_CREDENTIALS como JSON: {e}")
+            logger.error(f"📋 Primeros 100 caracteres del JSON: {firebase_credentials_json[:100] if firebase_credentials_json else 'N/A'}")
+            logger.error("💡 Sugerencia: Verifica que FIREBASE_CREDENTIALS sea un JSON válido sin caracteres extra")
         except ValueError as e:
             # Firebase ya inicializado (puede pasar si se recarga el módulo)
             if "already exists" in str(e).lower():
