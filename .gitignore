@@ -7,6 +7,9 @@ frontend/.env.local
 # Firebase credentials (IMPORTANT: Never commit these!)
 serviceAccountKey.json
 *.firebase-adminsdk*.json
+FIREBASE_CREDENTIALS_FORMAT.txt
+*credentials*.json
+*credentials*.txt
 
 # Python
 __pycache__/
@@ -47,3 +50,9 @@ frontend/.vite/
 *.log
 logs/
 stats.json
+
+# Backups (no commitear backups al repositorio)
+backups/
+*.tar.gz
+*.zip
+*.backup
