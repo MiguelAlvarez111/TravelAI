@@ -1,13 +1,41 @@
 /**
- * ItineraryDocument.jsx - Componente oculto para generar PDF estilo revista
+ * ItineraryDocument.jsx - Componente oculto para generar PDF estilo moderno
  * 
  * Este componente se renderiza oculto en el DOM y se captura con html2canvas
- * para generar un PDF de alta calidad estilo revista de viajes.
+ * para generar un PDF de alta calidad con el mismo diseño de la página principal.
  */
 
-import React, { memo } from 'react';
+import React, { memo, useMemo } from 'react';
 import ReactMarkdown from 'react-markdown';
-import { Cloud, DollarSign, MapPin, Calendar, Plane } from 'lucide-react';
+import { Cloud, Wallet, Sparkles, Plane, Hotel, UtensilsCrossed, MapPin, Lightbulb, DollarSign } from 'lucide-react';
+import { parseTravelPlan } from './utils';
+
+// Función auxiliar para parsear contenido de secciones (igual que en TravelDashboard)
+const parseSectionContent = (text) => {
+  if (!text) return { intro: '', items: [] };
+  
+  const textStr = typeof text === 'string' ? String(text) : String(text);
+  const bulletPattern = /•|\n\s*-\s*/;
+  const bulletMatch = textStr.match(bulletPattern);
+  
+  if (bulletMatch) {
+    const bulletIndex = bulletMatch.index;
+    const intro = textStr.substring(0, bulletIndex).trim();
+    const itemsText = textStr.substring(bulletIndex + bulletMatch[0].length);
+    let items = itemsText.split(/•|\n\s*-\s*|\n/);
+    items = items.map(item => item.trim()).filter(item => item.length > 0 && !/^[^\w\s]+$/.test(item));
+    return { intro, items };
+  }
+  
+  const lines = textStr.split('\n').map(line => line.trim()).filter(line => line.length > 0);
+  if (lines.length > 1) {
+    const intro = lines[0];
+    const items = lines.slice(1).filter(item => !/^[^\w\s]+$/.test(item));
+    return { intro, items };
+  }
+  
+  return { intro: textStr.trim(), items: [] };
+};
 
 const ItineraryDocument = memo(({ travelData, formData }) => {
   if (!travelData || !formData) return null;
@@ -16,10 +44,17 @@ const ItineraryDocument = memo(({ travelData, formData }) => {
     ? travelData.images[0] 
     : null;
 
+  // Parsear el plan usando la misma función que la página principal
+  const parsedSections = useMemo(() => {
+    return parseTravelPlan(travelData?.gemini_response);
+  }, [travelData?.gemini_response]);
+
+  const sectionOrder = ['intro', 'alojamiento', 'gastronomia', 'lugares', 'consejos', 'costos'];
+
   return (
     <div 
       id="itinerary-document"
-      className="w-[210mm] min-h-[297mm] bg-white"
+      className="bg-white"
       style={{
         position: 'absolute',
         left: '-9999px',
@@ -29,15 +64,33 @@ const ItineraryDocument = memo(({ travelData, formData }) => {
         visibility: 'visible', // Visible para html2canvas
         zIndex: -1,
         pointerEvents: 'none',
+        fontFamily: "'Inter', -apple-system, BlinkSystemFont, 'Segoe UI', sans-serif",
+        // Optimizaciones para mejor calidad de renderizado
+        WebkitFontSmoothing: 'antialiased',
+        MozOsxFontSmoothing: 'grayscale',
+        textRendering: 'optimizeLegibility',
+        imageRendering: 'high-quality',
+        // Asegurar que los colores se vean bien
+        color: '#111111',
+        backgroundColor: '#ffffff',
       }}
     >
-      {/* Hero Banner con Imagen */}
+      {/* Hero Banner con Imagen - Estilo moderno */}
       {heroImage && (
-        <div className="relative w-full h-64 overflow-hidden">
+        <div 
+          className="relative w-full"
+          style={{ 
+            height: '280px',
+            borderRadius: '32px 32px 0 0',
+            overflow: 'hidden',
+            marginBottom: '32px'
+          }}
+        >
           <img 
             src={heroImage} 
             alt={formData.destination}
-            className="w-full h-full object-cover"
+            className="w-full h-full"
+            style={{ objectFit: 'cover' }}
             crossOrigin="anonymous"
           />
           <div 
@@ -46,215 +99,457 @@ const ItineraryDocument = memo(({ travelData, formData }) => {
               background: 'linear-gradient(to top, rgba(0,0,0,0.8) 0%, rgba(0,0,0,0.4) 50%, transparent 100%)'
             }}
           ></div>
-          <div className="absolute bottom-0 left-0 right-0 p-8">
-            <div className="flex items-center gap-2 mb-2">
-              <Plane className="w-6 h-6" style={{ color: '#ffffff' }} />
-              <h1 className="text-4xl font-bold" style={{ color: '#ffffff', textShadow: '0 2px 4px rgba(0,0,0,0.5)' }}>
+          <div 
+            className="absolute bottom-0 left-0 right-0"
+            style={{ padding: '32px' }}
+          >
+            <h1 
+              className="text-white font-semibold"
+              style={{ 
+                fontSize: '36px',
+                marginBottom: '8px',
+                letterSpacing: '-0.02em',
+                textShadow: '0 2px 4px rgba(0,0,0,0.5)'
+              }}
+            >
                 {formData.destination}
               </h1>
-            </div>
-            {(formData.date_start || formData.date_end) && (
-              <div className="flex items-center gap-2" style={{ color: 'rgba(255,255,255,0.9)' }}>
-                <Calendar className="w-5 h-5" />
-                <span className="text-lg font-medium">
-                  {formData.date_start && formData.date_end 
-                    ? `${formData.date_start} - ${formData.date_end}` 
-                    : formData.date_start || formData.date_end}
-                </span>
-              </div>
+            {travelData.weather && (
+              <p 
+                className="text-white"
+                style={{ 
+                  fontSize: '18px',
+                  opacity: 0.9,
+                  fontWeight: 500
+                }}
+              >
+                {travelData.weather.condition}
+              </p>
             )}
           </div>
         </div>
       )}
 
       {/* Contenido Principal */}
-      <div className="p-8">
-        {/* Grid de 2 Columnas */}
-        <div className="grid grid-cols-10 gap-6 mb-8">
-          
-          {/* Columna Izquierda - Resumen (30%) */}
-          <div className="col-span-3 space-y-6">
+      <div style={{ padding: '0 40px' }}>
+        {/* Widgets de Información - Estilo de la página principal */}
+        <div 
+          style={{ 
+            display: 'grid',
+            gridTemplateColumns: 'repeat(3, 1fr)',
+            gap: '16px',
+            marginBottom: '32px'
+          }}
+        >
+          {travelData.weather && travelData.weather.temp !== null && (
             <div 
-              className="rounded-2xl p-6 border"
               style={{
-                background: 'linear-gradient(to bottom right, #eff6ff 0%, #eef2ff 100%)',
-                borderColor: '#dbeafe'
+                backgroundColor: '#ffffff',
+                borderRadius: '16px',
+                padding: '24px',
+                textAlign: 'center',
+                border: '1px solid rgba(226, 232, 240, 0.5)',
+                boxShadow: '0 1px 2px 0 rgba(0, 0, 0, 0.05)',
+                minHeight: '140px',
+                display: 'flex',
+                flexDirection: 'column',
+                alignItems: 'center',
+                justifyContent: 'center'
               }}
             >
-              <h2 className="text-xl font-bold mb-4 flex items-center gap-2" style={{ color: '#1e293b' }}>
-                <MapPin className="w-5 h-5" style={{ color: '#2563eb' }} />
-                Resumen del Viaje
-              </h2>
-              
-              <div className="space-y-4">
-                {/* Clima */}
-                {travelData.weather && travelData.weather.temp !== null && (
-                  <div className="flex items-center gap-3 p-3 rounded-lg" style={{ backgroundColor: '#ffffff', boxShadow: '0 1px 2px 0 rgba(0,0,0,0.05)' }}>
-                    <div className="p-2 rounded-lg" style={{ backgroundColor: '#dbeafe' }}>
-                      <Cloud className="w-5 h-5" style={{ color: '#2563eb' }} />
-                    </div>
-                    <div>
-                      <div className="text-xs uppercase tracking-wide" style={{ color: '#64748b' }}>Clima</div>
-                      <div className="text-lg font-bold" style={{ color: '#1e293b' }}>
-                        {travelData.weather.temp}°C
+              <Cloud 
+                style={{ 
+                  width: '40px', 
+                  height: '40px', 
+                  color: '#3b82f6',
+                  marginBottom: '12px'
+                }} 
+              />
+              <div 
+                style={{
+                  fontSize: '30px',
+                  fontWeight: 700,
+                  color: '#111111',
+                  marginBottom: '4px',
+                  letterSpacing: '-0.02em'
+                }}
+              >
+                {travelData.weather.temp}°
                       </div>
                       {travelData.weather.condition && (
-                        <div className="text-sm" style={{ color: '#475569' }}>{travelData.weather.condition}</div>
+                <p 
+                  style={{
+                    fontSize: '12px',
+                    color: '#6b7280',
+                    fontWeight: 500,
+                    textTransform: 'uppercase',
+                    letterSpacing: '0.05em'
+                  }}
+                >
+                  {travelData.weather.condition}
+                </p>
+                      )}
+                    </div>
+          )}
+
+          {formData.budget && (
+            <div 
+              style={{
+                backgroundColor: '#ffffff',
+                borderRadius: '16px',
+                padding: '24px',
+                textAlign: 'center',
+                border: '1px solid rgba(226, 232, 240, 0.5)',
+                boxShadow: '0 1px 2px 0 rgba(0, 0, 0, 0.05)',
+                minHeight: '140px',
+                display: 'flex',
+                flexDirection: 'column',
+                alignItems: 'center',
+                justifyContent: 'center'
+              }}
+            >
+              <Wallet 
+                style={{ 
+                  width: '40px', 
+                  height: '40px', 
+                  color: '#6b7280',
+                  marginBottom: '12px'
+                }} 
+              />
+              <div 
+                style={{
+                  fontSize: '20px',
+                  fontWeight: 700,
+                  color: '#111111',
+                  marginBottom: '4px'
+                }}
+              >
+                {formData.budget.split(' ')[0]}
+              </div>
+              <p 
+                style={{
+                  fontSize: '14px',
+                  color: '#6b7280',
+                  fontWeight: 500
+                }}
+              >
+                Presupuesto
+              </p>
+                  </div>
+                )}
+
+          {formData.style && (
+            <div 
+              style={{
+                backgroundColor: '#ffffff',
+                borderRadius: '16px',
+                padding: '24px',
+                textAlign: 'center',
+                border: '1px solid rgba(226, 232, 240, 0.5)',
+                boxShadow: '0 1px 2px 0 rgba(0, 0, 0, 0.05)',
+                minHeight: '140px',
+                display: 'flex',
+                flexDirection: 'column',
+                alignItems: 'center',
+                justifyContent: 'center'
+              }}
+            >
+              <Sparkles 
+                style={{ 
+                  width: '40px', 
+                  height: '40px', 
+                  color: '#6b7280',
+                  marginBottom: '12px'
+                }} 
+              />
+              <div 
+                style={{
+                  fontSize: '20px',
+                  fontWeight: 700,
+                  color: '#111111',
+                  marginBottom: '4px'
+                }}
+              >
+                {formData.style.split(' ')[0]}
+              </div>
+              <p 
+                style={{
+                  fontSize: '14px',
+                  color: '#6b7280',
+                  fontWeight: 500
+                }}
+              >
+                Estilo
+              </p>
+            </div>
+          )}
+        </div>
+
+        {/* Header de Secciones */}
+        <div 
+          style={{
+            display: 'flex',
+            alignItems: 'center',
+            gap: '12px',
+            marginBottom: '24px',
+            paddingBottom: '16px',
+            borderBottom: '1px solid rgba(226, 232, 240, 0.5)'
+          }}
+        >
+          <div 
+            style={{
+              padding: '8px',
+              backgroundColor: '#f1f5f9',
+              borderRadius: '12px'
+            }}
+          >
+            <Plane 
+              style={{ 
+                width: '20px', 
+                height: '20px', 
+                color: '#94a3b8'
+              }} 
+            />
+          </div>
+          <h2 
+            style={{
+              fontSize: '24px',
+              fontWeight: 600,
+              color: '#111111',
+              letterSpacing: '-0.02em'
+            }}
+          >
+            Tu Plan de Viaje por Alex
+          </h2>
+        </div>
+
+        {/* Contenido del Plan - Estructura igual que la página principal */}
+        <div style={{ marginBottom: '32px' }}>
+          {parsedSections && Object.keys(parsedSections).length > 0 ? (
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+              {sectionOrder.map((sectionKey) => {
+                const section = parsedSections[sectionKey];
+                
+                // Intro es un string
+                if (sectionKey === 'intro') {
+                  const introValue = parsedSections?.intro;
+                  const hasValidIntro = introValue !== null && 
+                                       introValue !== undefined && 
+                                       typeof introValue === 'string' && 
+                                       introValue.trim().length > 0;
+                  
+                  if (!hasValidIntro) return null;
+                  
+                  const introForRender = introValue.trim();
+                  
+                  return (
+                    <div 
+                      key="intro"
+                      style={{
+                        backgroundColor: '#ffffff',
+                        borderRadius: '16px',
+                        padding: '24px',
+                        border: '1px solid rgba(226, 232, 240, 0.5)',
+                        boxShadow: '0 1px 2px 0 rgba(0, 0, 0, 0.05)'
+                      }}
+                    >
+                      <div 
+                        style={{
+                          color: '#475569',
+                          fontSize: '14px',
+                          lineHeight: '1.75',
+                          fontFamily: "'Inter', sans-serif"
+                        }}
+                      >
+                        <ReactMarkdown 
+                          components={{
+                            p: ({ children }) => <p style={{ margin: 0, marginBottom: '8px' }}>{children}</p>
+                          }}
+                        >
+                          {introForRender}
+                        </ReactMarkdown>
+                      </div>
+                    </div>
+                  );
+                }
+                
+                if (!section) return null;
+                
+                if (typeof section !== 'object' || !section.title || !section.content || !section.icon) {
+                  return null;
+                }
+
+                const IconComponent = section.icon;
+                const { intro, items } = parseSectionContent(section.content);
+                
+                return (
+                  <div
+                    key={sectionKey}
+                    style={{
+                      backgroundColor: '#ffffff',
+                      borderRadius: '16px',
+                      border: '1px solid rgba(226, 232, 240, 0.5)',
+                      boxShadow: '0 1px 2px 0 rgba(0, 0, 0, 0.05)',
+                      overflow: 'hidden'
+                    }}
+                  >
+                    {/* Header de la sección */}
+                    <div 
+                      style={{
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: '12px',
+                        padding: '16px',
+                        backgroundColor: '#fafafa'
+                      }}
+                    >
+                      <div 
+                        style={{
+                          padding: '10px',
+                          backgroundColor: '#f3f4f6',
+                          borderRadius: '12px'
+                        }}
+                      >
+                        <IconComponent 
+                          style={{ 
+                            width: '20px', 
+                            height: '20px', 
+                            color: '#4b5563'
+                          }} 
+                        />
+                      </div>
+                      <h3 
+                        style={{
+                          fontSize: '18px',
+                          fontWeight: 600,
+                          color: '#111111'
+                        }}
+                      >
+                        {section.title}
+                      </h3>
+                    </div>
+                    
+                    {/* Contenido de la sección */}
+                    <div style={{ padding: '16px', paddingTop: '8px' }}>
+                      {intro && (
+                        <p 
+                          style={{
+                            color: '#64748b',
+                            marginBottom: '16px',
+                            fontSize: '14px',
+                            lineHeight: '1.75',
+                            fontStyle: 'italic'
+                          }}
+                        >
+                          {intro}
+                        </p>
+                      )}
+                      
+                      {items.length > 0 && (
+                        <ul 
+                          style={{
+                            listStyle: 'disc',
+                            paddingLeft: '20px',
+                            display: 'flex',
+                            flexDirection: 'column',
+                            gap: '12px',
+                            color: '#475569',
+                            fontSize: '14px',
+                            lineHeight: '1.75'
+                          }}
+                        >
+                          {items.map((item, i) => (
+                            <li 
+                              key={i}
+                              style={{
+                                paddingLeft: '4px',
+                                color: '#475569'
+                              }}
+                            >
+                              <ReactMarkdown components={{ p: 'span' }}>
+                                {item}
+                              </ReactMarkdown>
+                            </li>
+                          ))}
+                        </ul>
                       )}
                     </div>
                   </div>
-                )}
-
-                {/* Presupuesto */}
-                {formData.budget && (
-                  <div className="flex items-center gap-3 p-3 rounded-lg" style={{ backgroundColor: '#ffffff', boxShadow: '0 1px 2px 0 rgba(0,0,0,0.05)' }}>
-                    <div className="p-2 rounded-lg" style={{ backgroundColor: '#dcfce7' }}>
-                      <DollarSign className="w-5 h-5" style={{ color: '#16a34a' }} />
-                    </div>
-                    <div>
-                      <div className="text-xs uppercase tracking-wide" style={{ color: '#64748b' }}>Presupuesto</div>
-                      <div className="text-lg font-bold" style={{ color: '#1e293b' }}>{formData.budget}</div>
-                    </div>
-                  </div>
-                )}
-
-                {/* Estilo */}
-                {formData.style && (
-                  <div className="flex items-center gap-3 p-3 rounded-lg" style={{ backgroundColor: '#ffffff', boxShadow: '0 1px 2px 0 rgba(0,0,0,0.05)' }}>
-                    <div className="p-2 rounded-lg" style={{ backgroundColor: '#f3e8ff' }}>
-                      <MapPin className="w-5 h-5" style={{ color: '#9333ea' }} />
-                    </div>
-                    <div>
-                      <div className="text-xs uppercase tracking-wide" style={{ color: '#64748b' }}>Estilo</div>
-                      <div className="text-lg font-bold" style={{ color: '#1e293b' }}>{formData.style}</div>
-                    </div>
-                  </div>
-                )}
-              </div>
+                );
+              })}
             </div>
-
-            {/* Hora Local */}
-            {travelData.info && travelData.info.local_time && (
-              <div className="rounded-2xl p-4 border" style={{ backgroundColor: '#f8fafc', borderColor: '#e2e8f0' }}>
-                <div className="text-xs uppercase tracking-wide mb-1" style={{ color: '#64748b' }}>Hora Local</div>
-                <div className="text-2xl font-bold" style={{ color: '#1e293b' }}>{travelData.info.local_time}</div>
-              </div>
-            )}
-          </div>
-
-          {/* Columna Derecha - Contenido Principal (70%) */}
-          <div className="col-span-7">
+          ) : (
+            // Fallback si no se pudo parsear
             <div 
               style={{
-                color: '#334155',
-                fontSize: '1.125rem',
-                lineHeight: '1.75rem',
+                backgroundColor: '#ffffff',
+                borderRadius: '16px',
+                padding: '24px',
+                border: '1px solid rgba(226, 232, 240, 0.5)',
+                boxShadow: '0 1px 2px 0 rgba(0, 0, 0, 0.05)'
               }}
-              className="markdown-content"
             >
-              <style>{`
-                .markdown-content h1 {
-                  font-size: 1.875rem;
-                  font-weight: 700;
-                  color: #0f172a;
-                  margin-top: 0;
-                  margin-bottom: 1rem;
-                  padding-bottom: 0.75rem;
-                  border-bottom: 2px solid #bfdbfe;
-                }
-                .markdown-content h2 {
-                  font-size: 1.5rem;
-                  font-weight: 700;
-                  color: #1e40af;
-                  margin-top: 1.5rem;
-                  margin-bottom: 0.75rem;
-                  padding-bottom: 0.5rem;
-                  border-bottom: 1px solid #dbeafe;
-                }
-                .markdown-content h3 {
-                  font-size: 1.25rem;
-                  font-weight: 700;
-                  color: #1e293b;
-                  margin-top: 1rem;
-                  margin-bottom: 0.5rem;
-                }
-                .markdown-content p {
-                  color: #334155;
-                  line-height: 1.75;
-                  margin-top: 1rem;
-                  margin-bottom: 1rem;
-                }
-                .markdown-content strong {
-                  color: #0f172a;
-                  font-weight: 600;
-                }
-                .markdown-content em {
-                  color: #475569;
-                  font-style: italic;
-                }
-                .markdown-content ul, .markdown-content ol {
-                  margin-top: 1rem;
-                  margin-bottom: 1rem;
-                  padding-left: 1.5rem;
-                }
-                .markdown-content li {
-                  color: #334155;
-                  line-height: 1.75;
-                  margin-top: 0.5rem;
-                }
-                .markdown-content a {
-                  color: #2563eb;
-                  text-decoration: none;
-                  font-weight: 500;
-                }
-                .markdown-content a:hover {
-                  text-decoration: underline;
-                }
-                .markdown-content code {
-                  color: #1e40af;
-                  background-color: #eff6ff;
-                  padding: 0.125rem 0.5rem;
-                  border-radius: 0.25rem;
-                  font-size: 0.875rem;
-                  font-family: monospace;
-                }
-                .markdown-content blockquote {
-                  border-left: 4px solid #93c5fd;
-                  padding-left: 1rem;
-                  font-style: italic;
-                  color: #475569;
-                  margin-top: 1rem;
-                  margin-bottom: 1rem;
-                }
-                .markdown-content hr {
-                  border-color: #cbd5e1;
-                  margin-top: 1.5rem;
-                  margin-bottom: 1.5rem;
-                }
-              `}</style>
+              <div 
+                style={{
+                  color: '#475569',
+                  fontSize: '14px',
+                  lineHeight: '1.75'
+                }}
+              >
               <ReactMarkdown>{travelData.gemini_response}</ReactMarkdown>
             </div>
           </div>
+          )}
         </div>
 
         {/* Galería de Imágenes */}
         {travelData.images && travelData.images.length > 1 && (
-          <div className="mt-8 pt-8 border-t-2" style={{ borderTopColor: '#e2e8f0' }}>
-            <h2 className="text-2xl font-bold mb-4 flex items-center gap-2" style={{ color: '#0f172a' }}>
-              <MapPin className="w-6 h-6" style={{ color: '#2563eb' }} />
+          <div 
+            style={{
+              marginTop: '32px',
+              paddingTop: '32px',
+              borderTop: '2px solid #e2e8f0'
+            }}
+          >
+            <h2 
+              style={{
+                fontSize: '24px',
+                fontWeight: 600,
+                color: '#111111',
+                marginBottom: '16px',
+                display: 'flex',
+                alignItems: 'center',
+                gap: '8px'
+              }}
+            >
+              <MapPin style={{ width: '24px', height: '24px', color: '#007AFF' }} />
               Galería de Imágenes
             </h2>
-            <div className="grid grid-cols-3 gap-4">
+            <div 
+              style={{
+                display: 'grid',
+                gridTemplateColumns: 'repeat(3, 1fr)',
+                gap: '16px'
+              }}
+            >
               {travelData.images.slice(1).map((imageUrl, index) => (
                 <div 
                   key={index}
-                  className="relative aspect-video rounded-lg overflow-hidden"
-                  style={{ boxShadow: '0 4px 6px -1px rgba(0,0,0,0.1), 0 2px 4px -1px rgba(0,0,0,0.06)' }}
+                  style={{
+                    aspectRatio: '16/9',
+                    borderRadius: '12px',
+                    overflow: 'hidden',
+                    boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06)'
+                  }}
                 >
                   <img 
                     src={imageUrl} 
                     alt={`${formData.destination} ${index + 2}`}
-                    className="w-full h-full object-cover"
+                    style={{
+                      width: '100%',
+                      height: '100%',
+                      objectFit: 'cover'
+                    }}
                     crossOrigin="anonymous"
                   />
                 </div>
@@ -264,37 +559,66 @@ const ItineraryDocument = memo(({ travelData, formData }) => {
         )}
       </div>
 
-      {/* Footer */}
+      {/* Footer Moderno */}
       <div 
-        className="mt-12 pt-8 border-t-2"
         style={{
-          borderTopColor: '#e2e8f0',
-          background: 'linear-gradient(to right, #eff6ff 0%, #eef2ff 100%)'
+          marginTop: '48px',
+          paddingTop: '32px',
+          paddingBottom: '32px',
+          paddingLeft: '40px',
+          paddingRight: '40px',
+          borderTop: '2px solid #e2e8f0',
+          backgroundColor: '#f8fafc',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'space-between'
         }}
       >
-        <div className="px-8 pb-8 flex items-center justify-between">
-          <div className="flex items-center gap-3">
-            <Plane className="w-6 h-6" style={{ color: '#2563eb' }} />
-            <span className="text-2xl font-bold" style={{ color: '#2563eb' }}>ViajeIA</span>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+          <Plane style={{ width: '24px', height: '24px', color: '#007AFF' }} />
+          <span 
+            style={{
+              fontSize: '24px',
+              fontWeight: 700,
+              color: '#007AFF'
+            }}
+          >
+            ViajeIA
+          </span>
           </div>
-          <div className="text-sm text-right" style={{ color: '#475569' }}>
-            <div>Generado el {new Date().toLocaleDateString('es-ES', { 
+        <div 
+          style={{
+            textAlign: 'right',
+            fontSize: '14px',
+            color: '#475569'
+          }}
+        >
+          <div>
+            Generado el {new Date().toLocaleDateString('es-ES', { 
               year: 'numeric', 
               month: 'long', 
               day: 'numeric' 
-            })}</div>
-            <div className="text-xs mt-1" style={{ color: '#64748b' }}>Powered by Google Gemini AI</div>
+            })}
+          </div>
+          <div 
+            style={{
+              fontSize: '12px',
+              marginTop: '4px',
+              color: '#64748b'
+            }}
+          >
+            Powered by Google Gemini AI
           </div>
         </div>
       </div>
     </div>
   );
 }, (prevProps, nextProps) => {
-  // Solo re-renderizar si cambian los datos relevantes
   return prevProps.travelData?.gemini_response === nextProps.travelData?.gemini_response &&
          prevProps.travelData?.images?.[0] === nextProps.travelData?.images?.[0] &&
          prevProps.formData.destination === nextProps.formData.destination &&
-         prevProps.formData.date === nextProps.formData.date &&
+         prevProps.formData.date_start === nextProps.formData.date_start &&
+         prevProps.formData.date_end === nextProps.formData.date_end &&
          prevProps.formData.budget === nextProps.formData.budget &&
          prevProps.formData.style === nextProps.formData.style;
 });

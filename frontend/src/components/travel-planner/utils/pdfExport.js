@@ -67,16 +67,23 @@ export const exportToPDF = async (travelData, formData, setLoading, setError) =>
     });
     await Promise.all(imagePromises);
 
+    // Mejorar la calidad aumentando la escala y optimizando las opciones
+    const scale = 3; // Aumentar a 3x para mejor calidad (era 2)
+    
     const canvas = await html2canvas(element, {
       useCORS: true,
-      allowTaint: true,
-      scale: 2,
+      allowTaint: true, // Permitir para imágenes de dominios diferentes
+      scale: scale,
       logging: false,
       backgroundColor: '#ffffff',
       width: element.scrollWidth,
       height: element.scrollHeight,
       windowWidth: element.scrollWidth,
       windowHeight: element.scrollHeight,
+      // Opciones adicionales para mejorar calidad
+      removeContainer: false,
+      imageTimeout: 15000, // Aumentar timeout para imágenes grandes
+      foreignObjectRendering: true, // Mejor renderizado de elementos complejos
       onclone: (clonedDoc) => {
         const clonedElement = clonedDoc.getElementById('itinerary-document');
         if (clonedElement) {
@@ -84,10 +91,26 @@ export const exportToPDF = async (travelData, formData, setLoading, setError) =>
           clonedElement.style.position = 'absolute';
           clonedElement.style.left = '-9999px';
           
+          // Asegurar que las fuentes estén cargadas
+          const style = clonedDoc.createElement('style');
+          style.textContent = `
+            @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap');
+            * {
+              -webkit-font-smoothing: antialiased;
+              -moz-osx-font-smoothing: grayscale;
+            }
+          `;
+          clonedDoc.head.appendChild(style);
+          
+          // Asegurar que todas las imágenes tengan crossOrigin
           const clonedImages = clonedElement.querySelectorAll('img');
           clonedImages.forEach(img => {
             if (!img.hasAttribute('crossOrigin')) {
               img.setAttribute('crossOrigin', 'anonymous');
+            }
+            // Asegurar que las imágenes se muestren correctamente
+            if (!img.complete) {
+              img.style.display = 'block';
             }
           });
         }
@@ -96,7 +119,11 @@ export const exportToPDF = async (travelData, formData, setLoading, setError) =>
 
     const imgWidth = canvas.width;
     const imgHeight = canvas.height;
-    const imgData = canvas.toDataURL('image/png', 1.0);
+    
+    // Usar JPEG con alta calidad para mejor compresión sin perder mucha calidad visual
+    // Para máxima calidad, usar PNG (más pesado) o JPEG al 98% (mejor balance)
+    // JPEG al 98% ofrece excelente calidad visual con mejor compresión
+    const imgData = canvas.toDataURL('image/jpeg', 0.98); // 98% de calidad JPEG (muy alta)
 
     element.style.position = originalStyles.position;
     element.style.left = originalStyles.left;
@@ -109,17 +136,23 @@ export const exportToPDF = async (travelData, formData, setLoading, setError) =>
       btn.style.visibility = visibility;
     });
 
-    const mmPerPixel = 0.264583333;
+    // Calcular dimensiones en mm (1 pulgada = 25.4mm, 1 pulgada = 96px a 1x)
+    // Con scale de 3, tenemos más píxeles por mm, así que ajustamos
+    const mmPerPixel = 0.264583333; // 1px a 96dpi = 0.264583333mm
     const pdfWidthMm = imgWidth * mmPerPixel;
     const pdfHeightMm = imgHeight * mmPerPixel;
 
+    // Crear PDF con mejor compresión
     const pdf = new jsPDF({
       orientation: 'p',
       unit: 'mm',
-      format: [pdfWidthMm, pdfHeightMm]
+      format: [pdfWidthMm, pdfHeightMm],
+      compress: true // Habilitar compresión
     });
 
-    pdf.addImage(imgData, 'PNG', 0, 0, pdfWidthMm, pdfHeightMm, undefined, 'FAST');
+    // Usar 'MEDIUM' o 'SLOW' en lugar de 'FAST' para mejor calidad
+    // 'SLOW' usa compresión sin pérdidas, 'MEDIUM' es un balance
+    pdf.addImage(imgData, 'JPEG', 0, 0, pdfWidthMm, pdfHeightMm, undefined, 'SLOW');
 
     const fileName = `ViajeIA_${formData.destination.replace(/\s+/g, '_')}_${new Date().toISOString().split('T')[0]}.pdf`;
     pdf.save(fileName);
