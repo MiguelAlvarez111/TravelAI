@@ -80,6 +80,18 @@ Aquí no encontrarás sobre-ingeniería. Encontrarás decisiones pragmáticas, c
 
 ---
 
+## 📚 Documentación Adicional
+
+Para documentación técnica detallada, auditorías, reportes y guías de desarrollo, consulta la carpeta [`docs/`](docs/).
+
+**Documentación principal:**
+- 📘 [Documentación Completa](docs/DOCUMENTACION.md)
+- 🔒 [Implementación de Seguridad](docs/IMPLEMENTACION_SEGURIDAD.md)
+- 📊 [Reporte de Arquitectura](docs/REPORTE_ARQUITECTURA_TECNICA.md)
+- 🚀 [Guía de Despliegue en Railway](docs/RAILWAY_GUIDE.md)
+
+---
+
 ## 🚀 Guía de Instalación
 
 ### Prerrequisitos
@@ -419,7 +431,7 @@ curl -X POST "http://localhost:8000/api/plan" \
 
 ### Railway (Recomendado)
 
-Ver [RAILWAY_GUIDE.md](RAILWAY_GUIDE.md) para instrucciones detalladas.
+Ver [docs/RAILWAY_GUIDE.md](docs/RAILWAY_GUIDE.md) para instrucciones detalladas.
 
 ### Variables de Entorno en Producción
 
@@ -444,7 +456,7 @@ Asegúrate de configurar todas las variables de entorno en tu plataforma de desp
 
 ## 🎓 Cumplimiento del Taller
 
-Este proyecto cumple con todos los requisitos del taller "ViajeIA - Tu Asistente Personal de Viajes". Ver [CUMPLIMIENTO_TALLER.md](CUMPLIMIENTO_TALLER.md) para un análisis detallado.
+Este proyecto cumple con todos los requisitos del taller "ViajeIA - Tu Asistente Personal de Viajes". Ver [docs/CUMPLIMIENTO_TALLER.md](docs/CUMPLIMIENTO_TALLER.md) para un análisis detallado.
 
 **Fases Implementadas:**
 - ✅ Fase 1: Chatbot Básico
