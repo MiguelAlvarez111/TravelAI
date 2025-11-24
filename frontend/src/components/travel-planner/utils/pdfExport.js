@@ -25,35 +25,52 @@ export const exportToPDF = async (travelData, formData, setLoading, setError) =>
     const downloadButtons = document.querySelectorAll('button[title="Descargar PDF"]');
     const originalButtonStyles = [];
     downloadButtons.forEach(btn => {
-      originalButtonStyles.push({
-        element: btn,
-        display: btn.style.display,
-        visibility: btn.style.visibility
-      });
-      btn.style.display = 'none';
-      btn.style.visibility = 'hidden';
+      if (btn && btn.style) {
+        originalButtonStyles.push({
+          element: btn,
+          display: btn.style.display || '',
+          visibility: btn.style.visibility || ''
+        });
+        if (typeof btn.style.setProperty === 'function') {
+          btn.style.setProperty('display', 'none', 'important');
+          btn.style.setProperty('visibility', 'hidden', 'important');
+        } else {
+          btn.style.display = 'none';
+          btn.style.visibility = 'hidden';
+        }
+      }
     });
 
     const images = element.querySelectorAll('img');
     images.forEach(img => {
-      if (!img.hasAttribute('crossOrigin')) {
+      if (img && img.setAttribute && !img.hasAttribute('crossOrigin')) {
         img.setAttribute('crossOrigin', 'anonymous');
       }
     });
 
     const originalStyles = {
-      position: element.style.position,
-      left: element.style.left,
-      top: element.style.top,
-      zIndex: element.style.zIndex,
-      visibility: element.style.visibility
+      position: element.style?.position || '',
+      left: element.style?.left || '',
+      top: element.style?.top || '',
+      zIndex: element.style?.zIndex || '',
+      visibility: element.style?.visibility || ''
     };
     
-    element.style.position = 'absolute';
-    element.style.left = '-9999px';
-    element.style.top = '0';
-    element.style.zIndex = '9999';
-    element.style.visibility = 'visible';
+    if (element.style) {
+      if (typeof element.style.setProperty === 'function') {
+        element.style.setProperty('position', 'absolute', 'important');
+        element.style.setProperty('left', '-9999px', 'important');
+        element.style.setProperty('top', '0', 'important');
+        element.style.setProperty('z-index', '9999', 'important');
+        element.style.setProperty('visibility', 'visible', 'important');
+      } else {
+        element.style.position = 'absolute';
+        element.style.left = '-9999px';
+        element.style.top = '0';
+        element.style.zIndex = '9999';
+        element.style.visibility = 'visible';
+      }
+    }
 
     const imagePromises = Array.from(images).map(img => {
       if (img.complete && img.naturalHeight !== 0) {
@@ -83,36 +100,59 @@ export const exportToPDF = async (travelData, formData, setLoading, setError) =>
       // Opciones adicionales para mejorar calidad
       removeContainer: false,
       imageTimeout: 15000, // Aumentar timeout para imágenes grandes
-      foreignObjectRendering: true, // Mejor renderizado de elementos complejos
+      // Deshabilitar foreignObjectRendering para evitar errores con setProperty
+      foreignObjectRendering: false,
       onclone: (clonedDoc) => {
-        const clonedElement = clonedDoc.getElementById('itinerary-document');
-        if (clonedElement) {
-          clonedElement.style.visibility = 'visible';
-          clonedElement.style.position = 'absolute';
-          clonedElement.style.left = '-9999px';
-          
-          // Asegurar que las fuentes estén cargadas
-          const style = clonedDoc.createElement('style');
-          style.textContent = `
-            @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap');
-            * {
-              -webkit-font-smoothing: antialiased;
-              -moz-osx-font-smoothing: grayscale;
+        try {
+          const clonedElement = clonedDoc.getElementById('itinerary-document');
+          if (clonedElement) {
+            // Asegurar que el elemento sea visible en el clon
+            if (clonedElement.style) {
+              try {
+                clonedElement.style.visibility = 'visible';
+                clonedElement.style.position = 'absolute';
+                clonedElement.style.left = '-9999px';
+              } catch (styleError) {
+                console.warn('Error al establecer estilos en clon:', styleError);
+              }
             }
-          `;
-          clonedDoc.head.appendChild(style);
-          
-          // Asegurar que todas las imágenes tengan crossOrigin
-          const clonedImages = clonedElement.querySelectorAll('img');
-          clonedImages.forEach(img => {
-            if (!img.hasAttribute('crossOrigin')) {
-              img.setAttribute('crossOrigin', 'anonymous');
+            
+            // Asegurar que las fuentes estén cargadas
+            try {
+              const style = clonedDoc.createElement('style');
+              if (style) {
+                style.textContent = `
+                  @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap');
+                  * {
+                    -webkit-font-smoothing: antialiased;
+                    -moz-osx-font-smoothing: grayscale;
+                  }
+                `;
+                if (clonedDoc.head) {
+                  clonedDoc.head.appendChild(style);
+                }
+              }
+            } catch (styleError) {
+              console.warn('Error al agregar estilos de fuentes:', styleError);
             }
-            // Asegurar que las imágenes se muestren correctamente
-            if (!img.complete) {
-              img.style.display = 'block';
+            
+            // Asegurar que todas las imágenes tengan crossOrigin
+            try {
+              const clonedImages = clonedElement.querySelectorAll('img');
+              clonedImages.forEach(img => {
+                if (img && typeof img.setAttribute === 'function') {
+                  if (!img.hasAttribute('crossOrigin')) {
+                    img.setAttribute('crossOrigin', 'anonymous');
+                  }
+                }
+              });
+            } catch (imgError) {
+              console.warn('Error al procesar imágenes en clon:', imgError);
             }
-          });
+          }
+        } catch (error) {
+          console.warn('Error en onclone callback:', error);
+          // Continuar con la generación del PDF aunque haya un error menor
         }
       }
     });
@@ -125,15 +165,32 @@ export const exportToPDF = async (travelData, formData, setLoading, setError) =>
     // JPEG al 98% ofrece excelente calidad visual con mejor compresión
     const imgData = canvas.toDataURL('image/jpeg', 0.98); // 98% de calidad JPEG (muy alta)
 
-    element.style.position = originalStyles.position;
-    element.style.left = originalStyles.left;
-    element.style.top = originalStyles.top;
-    element.style.zIndex = originalStyles.zIndex;
-    element.style.visibility = originalStyles.visibility;
+    if (element && element.style) {
+      if (typeof element.style.setProperty === 'function') {
+        element.style.setProperty('position', originalStyles.position || '', 'important');
+        element.style.setProperty('left', originalStyles.left || '', 'important');
+        element.style.setProperty('top', originalStyles.top || '', 'important');
+        element.style.setProperty('z-index', originalStyles.zIndex || '', 'important');
+        element.style.setProperty('visibility', originalStyles.visibility || '', 'important');
+      } else {
+        element.style.position = originalStyles.position || '';
+        element.style.left = originalStyles.left || '';
+        element.style.top = originalStyles.top || '';
+        element.style.zIndex = originalStyles.zIndex || '';
+        element.style.visibility = originalStyles.visibility || '';
+      }
+    }
 
     originalButtonStyles.forEach(({ element: btn, display, visibility }) => {
-      btn.style.display = display;
-      btn.style.visibility = visibility;
+      if (btn && btn.style) {
+        if (typeof btn.style.setProperty === 'function') {
+          btn.style.setProperty('display', display || '', 'important');
+          btn.style.setProperty('visibility', visibility || '', 'important');
+        } else {
+          btn.style.display = display || '';
+          btn.style.visibility = visibility || '';
+        }
+      }
     });
 
     // Calcular dimensiones en mm (1 pulgada = 25.4mm, 1 pulgada = 96px a 1x)
@@ -161,12 +218,23 @@ export const exportToPDF = async (travelData, formData, setLoading, setError) =>
     toast.success('Descarga lista');
     
   } catch (error) {
-    const element = document.getElementById('itinerary-document');
-    if (element) {
-      element.style.position = 'absolute';
-      element.style.left = '-9999px';
-      element.style.visibility = 'hidden';
-      element.style.zIndex = '-1';
+    try {
+      const element = document.getElementById('itinerary-document');
+      if (element && element.style) {
+        if (typeof element.style.setProperty === 'function') {
+          element.style.setProperty('position', 'absolute', 'important');
+          element.style.setProperty('left', '-9999px', 'important');
+          element.style.setProperty('visibility', 'hidden', 'important');
+          element.style.setProperty('z-index', '-1', 'important');
+        } else {
+          element.style.position = 'absolute';
+          element.style.left = '-9999px';
+          element.style.visibility = 'hidden';
+          element.style.zIndex = '-1';
+        }
+      }
+    } catch (cleanupError) {
+      console.warn('Error al limpiar estilos:', cleanupError);
     }
     
     const errorMessage = error.message || 'Error desconocido al generar el PDF';
