@@ -3,6 +3,7 @@ FastAPI Backend para ViajeIA - Integración con Google Gemini, OpenWeatherMap y 
 """
 import os
 import logging
+from logging.handlers import RotatingFileHandler
 import traceback
 import asyncio
 import json
@@ -35,6 +36,24 @@ logging.basicConfig(
     format='%(asctime)s - %(name)s - %(levelname)s - %(message)s'
 )
 logger = logging.getLogger(__name__)
+
+# Configurar logging a archivo (RotatingFileHandler)
+# Crear directorio backend/logs si no existe
+backend_logs_dir = os.path.join(os.path.dirname(__file__), 'backend', 'logs')
+os.makedirs(backend_logs_dir, exist_ok=True)
+
+# Configurar RotatingFileHandler para logs en archivo
+log_file_path = os.path.join(backend_logs_dir, 'app.log')
+file_handler = RotatingFileHandler(
+    log_file_path,
+    maxBytes=10485760,  # 10MB
+    backupCount=5,      # Mantener 5 archivos de backup
+    encoding='utf-8'
+)
+file_handler.setLevel(logging.INFO)
+file_handler.setFormatter(logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s'))
+logger.addHandler(file_handler)
+logger.info(f"✅ Logging configurado: logs se guardarán en {log_file_path}")
 
 # Inicializar Firebase Admin SDK (Robusto - no bloquea el servidor si falla)
 FIREBASE_INITIALIZED = False
